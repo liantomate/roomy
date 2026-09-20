@@ -1,4 +1,4 @@
-import TimerEngine from "../../src/core/features/timer/TimerEngine.ts";
+import TimerEngine from "../../src/core/features/timer/timerEngine.ts";
 import {
 	startTimerTest,
 	elapsedTimeTest,

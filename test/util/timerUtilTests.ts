@@ -1,4 +1,4 @@
-import { formatTimeMMSS } from "../../src/core/utils/TimerUtil.ts";
+import { formatTimeMMSS } from "../../src/core/utils/timerUtil.ts";
 
 export function zeroFormatsAsDoubleZeroTest() {
 	console.assert(

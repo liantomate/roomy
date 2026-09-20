@@ -1,6 +1,6 @@
 import type { TimerStatus } from "../../../types/TimerTypes";
-import type { TimerMode } from "./TimerMode";
-import { SystemSecTimeSource, type TimeSource } from "./TimeSource";
+import type { TimerMode } from "./timerMode";
+import { SystemSecTimeSource, type TimeSource } from "./timerSource";
 
 type TimerEngineProps = {
 	timeStart: number;

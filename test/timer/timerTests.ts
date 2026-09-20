@@ -1,9 +1,9 @@
-import { DummySecTimeSource } from "../../src/core/features/timer/TimeSource.ts";
+import { DummySecTimeSource } from "../../src/core/features/timer/timerSource.ts";
 import {
 	ModeCounter,
 	ModeTimer,
-} from "../../src/core/features/timer/TimerMode.ts";
-import TimerEngine from "../../src/core/features/timer/TimerEngine.ts";
+} from "../../src/core/features/timer/timerMode.ts";
+import TimerEngine from "../../src/core/features/timer/timerEngine.ts";
 
 export function startTimerTest() {
 	const source = new DummySecTimeSource();
