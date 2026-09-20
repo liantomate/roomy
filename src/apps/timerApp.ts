@@ -1,6 +1,6 @@
 import timerEngine from "../core/features/timer/timerEngine";
 import { ModeCounter, ModeTimer } from "../core/features/timer/timerMode";
-import { type TimerStatus, type TimerModes } from "../types/TimerTypes";
+import { type TimerStatus, type TimerModes } from "../types/timerTypes";
 
 const DEFAULT_COUNTER_CAP = 86400;
 class TimerApp {

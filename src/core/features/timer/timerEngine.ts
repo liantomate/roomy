@@ -1,4 +1,4 @@
-import type { TimerStatus } from "../../../types/TimerTypes";
+import type { TimerStatus } from "../../../types/timerTypes";
 import type { TimerMode } from "./timerMode";
 import { SystemSecTimeSource, type TimeSource } from "./timeSource";
 
