@@ -1,11 +1,11 @@
 import timerEngine from "../core/features/timer/timerEngine";
+import { ModeTimer } from "../core/features/timer/timerMode";
 import { type TimerStatus, type TimerModes } from "../types/TimerTypes";
 
 class TimerApp {
 	constructor() {}
 
-	public start(timerMode: TimerModes) {}
-
+	public start(timerMode: TimerModes, duration: number = 86400) {}
 	public reset() {}
 	public pause() {}
 	public resume() {}

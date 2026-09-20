@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import TimerApp from "../apps/timerApp";
 import { formatTimeMMSS } from "../core/utils/timerUtil";
-import type { TimerModes } from "../types/TimerTypes";
 
 function useTimer(updateTime: number = 1000) {
 	const timerApp = new TimerApp();
@@ -16,7 +15,8 @@ function useTimer(updateTime: number = 1000) {
 	}, []);
 
 	return {
-		start: (timerMode: TimerModes) => timerApp.start(timerMode),
+		startTimer: (duration: number) => timerApp.start("timer", duration),
+		startCounter: () => timerApp.start("counter"),
 		reset: () => timerApp.reset(),
 		setPause: (shouldPause: boolean) => {
 			shouldPause ? timerApp.pause() : timerApp.resume;
