@@ -1,4 +1,4 @@
-import { DummySecTimeSource } from "../../src/core/features/timer/timerSource.ts";
+import { DummySecTimeSource } from "../../src/core/features/timer/timeSource.ts";
 import {
 	ModeCounter,
 	ModeTimer,
