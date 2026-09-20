@@ -14,16 +14,16 @@ export type StatusResponse = {
 	};
 };
 
-export type APIResponse =
+export type APIResponse<T> =
 	| {
 			isSuccessful: true;
 			code: APISuccessCode;
 			message: string;
-			additional: string[];
+			additional: T;
 	  }
 	| {
 			isSuccessful: false;
 			code: APIErrorCode;
 			error: string;
-			additional: string[];
+			additional?: T;
 	  };
