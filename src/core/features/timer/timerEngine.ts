@@ -1,5 +1,5 @@
 import type { TimerStatus } from "../../../types/TimerTypes";
-import type { TimerMode } from "./timerMode";
+import type { TimerMode } from "./TimerMode";
 import { SystemSecTimeSource, type TimeSource } from "./timerSource";
 
 type TimerEngineProps = {
