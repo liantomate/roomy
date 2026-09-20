@@ -2,7 +2,9 @@ export type APIErrorCode =
 	| "NETWORK_ERROR"
 	| "SIGNUP_ERROR"
 	| "INVALID_CREDS"
-	| "LOGOUT_ERROR";
+	| "LOGOUT_ERROR"
+	| "AUTH_ERROR"
+	| "QUERY_ERROR";
 export type APISuccessCode = "SUCCESS" | "SUCCESS WITH ERROR";
 
 export type StatusResponse = {
