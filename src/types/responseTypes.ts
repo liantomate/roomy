@@ -40,3 +40,31 @@ export function successResponse<T>(data: T) {
 		error: null,
 	};
 }
+
+export function generalResponse<T>(
+	data: T | null = null,
+	code: ResponseErrorCode | null = null,
+	message: string | null = null,
+): HookResponse<T> {
+	return {
+		data: data,
+		error:
+			!code || !message
+				? null
+				: {
+						code: code!,
+						message: message!,
+					},
+	};
+}
+
+export function generalResponseFromArr<T>(
+	data: T | null = null,
+	error: [ResponseErrorCode, string] | null = null,
+): HookResponse<T> {
+	return generalResponse(
+		data,
+		error ? error[0] : null,
+		error ? error[1] : null,
+	);
+}
