@@ -90,6 +90,24 @@ const authService = {
 			additional: null,
 		};
 	},
+
+	async isAuthenticated(): Promise<APIResponse<{ userId: string }>> {
+		const { data, error } = await supabase.auth.getUser();
+
+		if (error || !data)
+			return {
+				isSuccessful: false,
+				code: "AUTH_ERROR",
+				error: "No authenticated user found",
+			};
+
+		return {
+			isSuccessful: true,
+			code: "SUCCESS",
+			message: "Authenticated user found",
+			additional: { userId: data.user.id },
+		};
+	},
 };
 
 export default authService;

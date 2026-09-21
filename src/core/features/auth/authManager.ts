@@ -87,6 +87,13 @@ class AuthManager {
 			return errorResponse("LOGOUT_AUTH_FATAL_ERROR", response.error);
 		return successResponse(null);
 	}
+
+	public static async isAuthenticated(): Promise<HookResponse<string>> {
+		const response = await authService.isAuthenticated();
+		if (!response.isSuccessful)
+			return errorResponse("AUTH_NO_USER_FOUND", "No user signed in");
+		return successResponse(response.additional.userId);
+	}
 }
 
 export default AuthManager;

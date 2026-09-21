@@ -11,12 +11,15 @@ export type ResponseErrorCode =
 	| "SIGNUP_AUTH_NETWORK_ERROR"
 	| "SIGNUP_AUTH_FATAL_ERROR"
 	| "LOGIN_AUTH_INVALID_CREDS"
-	| "LOGOUT_AUTH_FATAL_ERROR";
+	| "LOGOUT_AUTH_FATAL_ERROR"
+	| "AUTH_NO_USER_FOUND";
 
 export type HookResponse<T> = {
 	data?: T | null;
 	error?: { code: ResponseErrorCode; message: string } | null;
 };
+
+export type TernaryHookState = "idle" | "loading" | "done";
 
 export function errorResponse<T>(
 	code: ResponseErrorCode,
