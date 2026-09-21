@@ -4,6 +4,7 @@ import userService from "../../../api/services/userService";
 import type {
 	AccountStats,
 	ActiveSession,
+	PublicAccount,
 	Session,
 } from "../../../types/database.types";
 import {
@@ -23,18 +24,20 @@ class User {
 		this.joinDate = joinDate;
 	}
 
-	public static async create(id: string): Promise<HookResponse<User>> {
+	public static async createFromAccount(
+		pubAccount: PublicAccount,
+	): Promise<HookResponse<User>> {
+		return successResponse(
+			new User(pubAccount.userId, pubAccount.name, pubAccount.joinDate),
+		);
+	}
+
+	public static async createFromId(id: string): Promise<HookResponse<User>> {
 		const response = await userService.getUserById(id);
 		if (!response.isSuccessful)
 			return errorResponse("GENERAL_QUERY_ERROR", response.error);
 
-		return successResponse(
-			new User(
-				id,
-				response.additional.name,
-				response.additional.joinDate,
-			),
-		);
+		return this.createFromAccount(response.additional);
 	}
 
 	public async getActiveSession(): Promise<HookResponse<ActiveSession>> {
