@@ -3,6 +3,7 @@
 // RESPONSE ERROR SYNTAX
 // CATEGORY-FIELD-ERROR_SOURCE
 export type ResponseErrorCode =
+	// ====== useAuth Errors ======= //
 	| "SIGNUP_NAME_TOO_SHORT"
 	| "SIGNUP_NAME_TOO_LONG"
 	| "SIGNUP_NAME_HAS_INVALID_CHARS"
@@ -12,7 +13,14 @@ export type ResponseErrorCode =
 	| "SIGNUP_AUTH_FATAL_ERROR"
 	| "LOGIN_AUTH_INVALID_CREDS"
 	| "LOGOUT_AUTH_FATAL_ERROR"
-	| "AUTH_NO_USER_FOUND";
+	// ===== useTimer Errors ===== //
+	| "TIMER_INVALID_STATE"
+	| "TIMER_START_FAILED"
+	// ===== General Errors ====== //
+	| "GENERAL_AUTH_NO_USER_FOUND"
+	| "GENERAL_QUERY_ERROR"
+	| "GENERAL_NETWORK_ERROR"
+	| "GENERAL_FATAL_ERROR";
 
 export type HookResponse<T> = {
 	data?: T | null;

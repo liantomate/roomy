@@ -4,7 +4,7 @@ import type { TimerStatus } from "../../types/timerTypes";
 import { mapSession } from "../mapper/typeMapper";
 import supabase from "../transport/client";
 
-const activeSessionService = {
+const sessionService = {
 	async createSession(): Promise<APIResponse<ActiveSession>> {
 		const {
 			data: { user },
@@ -157,4 +157,4 @@ const activeSessionService = {
 	},
 };
 
-export default activeSessionService;
+export default sessionService;
