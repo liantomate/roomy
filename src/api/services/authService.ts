@@ -1,5 +1,11 @@
+import type { FunctionsError } from "@supabase/supabase-js";
 import type { APIResponse } from "../../types/api.types";
 import supabase from "../transport/client";
+
+async function formatError(error: FunctionsError): Promise<string> {
+	const easyError = await error.context.json();
+	return `${easyError.status.code} ${easyError.status.message}`;
+}
 
 const authService = {
 	async signUp(
@@ -23,7 +29,7 @@ const authService = {
 				isSuccessful: false,
 				code: "NETWORK_ERROR",
 				error:
-					error ||
+					(await formatError(error)) ||
 					"Something went wrong while reaching the sign-up service",
 				additional: [],
 			};

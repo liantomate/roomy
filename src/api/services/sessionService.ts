@@ -37,7 +37,7 @@ const sessionService = {
 		return {
 			isSuccessful: true,
 			code: "SUCCESS",
-			message: `Successfully created a sessio`,
+			message: `Successfully created a session`,
 			additional: data,
 		};
 	},
@@ -87,10 +87,13 @@ const sessionService = {
 				error: "No active user found",
 			};
 
-		const { data, error } = await supabase.rpc("update_active_session", {
-			passed_user_id: user.id,
-			passed_status: status,
-		});
+		const { data, error } = await supabase
+			.rpc("update_active_session", {
+				passed_user_id: user.id,
+				passed_status: status,
+			})
+			.select()
+			.single();
 
 		if (error)
 			return {
@@ -101,11 +104,11 @@ const sessionService = {
 					"Something went wrong reaching update_active_session service",
 			};
 
-		if (!data?.is_successful)
+		if (!data)
 			return {
 				isSuccessful: false,
 				code: "QUERY_ERROR",
-				error: data?.message || "Failed to update session",
+				error: "Failed to update session",
 			};
 
 		return {
