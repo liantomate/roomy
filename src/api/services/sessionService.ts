@@ -1,7 +1,7 @@
 import type { APIResponse } from "../../types/api.types";
 import type { ActiveSession, Session } from "../../types/database.types";
 import type { TimerStatus } from "../../types/timerTypes";
-import { mapSession } from "../mapper/typeMapper";
+import { mapActiveSession, mapSession } from "../mapper/typeMapper";
 import supabase from "../transport/client";
 
 const sessionService = {
@@ -39,6 +39,38 @@ const sessionService = {
 			code: "SUCCESS",
 			message: `Successfully created a sessio`,
 			additional: data,
+		};
+	},
+
+	async getActiveSessionById(
+		userId: string,
+	): Promise<APIResponse<ActiveSession | null>> {
+		const { data, error } = await supabase
+			.from("active_sessions")
+			.select("*")
+			.eq("session_owner", userId)
+			.single();
+
+		if (error)
+			return {
+				isSuccessful: false,
+				code: "QUERY_ERROR",
+				error: error?.message || "Failed to get active session",
+			};
+
+		if (!data)
+			return {
+				isSuccessful: true,
+				code: "SUCCESS WITH ERROR",
+				message: "Successful query, no active session found",
+				additional: null,
+			};
+
+		return {
+			isSuccessful: true,
+			code: "SUCCESS",
+			message: "Successfully taken active session of target user",
+			additional: mapActiveSession(data),
 		};
 	},
 

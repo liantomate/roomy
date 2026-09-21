@@ -23,11 +23,11 @@ const userService = {
 			.eq("user_id", user.id)
 			.single();
 
-		if (error)
+		if (error || !data)
 			return {
 				isSuccessful: false,
 				code: "QUERY_ERROR",
-				error: error.message,
+				error: error?.message || "No data returned active user query",
 			};
 
 		return {
@@ -45,11 +45,11 @@ const userService = {
 			.eq("user_id", userId)
 			.single();
 
-		if (error)
+		if (error || !data)
 			return {
 				isSuccessful: false,
 				code: "QUERY_ERROR",
-				error: error.message,
+				error: error?.message || "No data returned on user query",
 			};
 
 		return {
@@ -66,11 +66,11 @@ const userService = {
 			.select("*")
 			.order("created_at", { ascending: false });
 
-		if (error)
+		if (error || !data)
 			return {
 				isSuccessful: false,
 				code: "QUERY_ERROR",
-				error: error.message,
+				error: error?.message || "No data returned on users query",
 			};
 
 		return {
