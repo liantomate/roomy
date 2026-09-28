@@ -1,96 +1,106 @@
 import type { TimerStatus } from "../../../types/timerTypes";
+import { ReadOnlyTimer } from "./timerInstances";
 import type { TimerMode } from "./timerMode";
 import { SystemSecTimeSource, type TimeSource } from "./timeSource";
 
-type TimerEngineProps = {
+export type TimerData = {
+	status: TimerStatus;
+	mode: TimerMode | null;
+	timeSource: TimeSource | null;
+
 	timeStart: number;
 	timeElapsed: number;
 	lastTick: number;
 };
 
-class TimerEngine {
-	private static instance: TimerEngine | null;
+export class TimerEngine {
+	private timerData: TimerData;
 
-	private status: TimerStatus = "idle";
-	private mode: TimerMode | null = null;
-	private timeSource: TimeSource | null = null;
-	private timerEngineProps: TimerEngineProps | null = null;
+	private constructor(data: TimerData) {
+		this.timerData = data;
+	}
 
-	private constructor() {}
+	public static createNew(): TimerEngine {
+		return new TimerEngine({
+			status: "idle",
+			mode: null,
+			timeSource: null,
+			timeStart: 0,
+			timeElapsed: 0,
+			lastTick: 0,
+		});
+	}
+
+	public static createFrom(data: TimerData): TimerEngine {
+		return new TimerEngine(data);
+	}
 
 	public start(
 		mode: TimerMode,
 		source: TimeSource = new SystemSecTimeSource(),
 	): void {
-		if (this.status !== "idle") return;
-		this.status = "running";
+		if (this.timerData.status !== "idle") return;
+		this.timerData.status = "running";
 
-		this.mode = mode;
-		this.timeSource = source;
+		this.timerData.mode = mode;
+		this.timerData.timeSource = source;
 
 		const currentTime = source.getTime();
-		this.timerEngineProps = {
-			timeStart: currentTime,
-			timeElapsed: 0,
-			lastTick: currentTime,
-		};
+		this.timerData.timeStart = currentTime;
+		this.timerData.timeElapsed = 0;
+		this.timerData.lastTick = currentTime;
 	}
 
 	public reset(): void {
-		this.status = "idle";
-		this.mode = null;
-		this.timerEngineProps = null;
-		this.timeSource = null;
-		// TODO: implement event-based transmission
+		this.timerData.status = "idle";
+		this.timerData.mode = null;
+		this.timerData.timeSource = null;
+		this.timerData.timeSource = null;
 	}
 
 	public pause(): void {
-		if (this.status !== "running") return;
-		if (!this.timerEngineProps || !this.timeSource || !this.mode) return;
-		this.status = "paused";
+		if (this.timerData.status !== "running") return;
+		if (!this.timerData.timeSource || !this.timerData.mode) return;
+		this.timerData.status = "paused";
 
-		const currentTime = this.timeSource.getTime();
-		this.timerEngineProps.timeElapsed +=
-			currentTime - this.timerEngineProps.lastTick;
-		this.timerEngineProps.lastTick = currentTime;
+		const currentTime = this.timerData.timeSource.getTime();
+		this.timerData.timeElapsed += currentTime - this.timerData.lastTick;
+		this.timerData.lastTick = currentTime;
 	}
 
 	public resume(): void {
-		if (this.status !== "paused") return;
-		if (!this.timerEngineProps || !this.timeSource) return;
-		this.status = "running";
+		if (this.timerData.status !== "paused") return;
+		if (!this.timerData || !this.timerData.timeSource) return;
+		this.timerData.status = "running";
 
-		this.timerEngineProps.lastTick = this.timeSource.getTime();
+		this.timerData.lastTick = this.timerData.timeSource.getTime();
 	}
 
 	public getStatus(): TimerStatus {
-		return this.status;
+		return this.timerData.status;
 	}
 
 	public getTimeSec(): number {
 		if (
-			this.status !== "running" ||
-			!this.timerEngineProps ||
-			!this.timeSource
+			this.timerData.status !== "running" ||
+			!this.timerData ||
+			!this.timerData.timeSource
 		)
-			return this.timerEngineProps?.timeElapsed ?? 0;
+			return this.timerData?.timeElapsed ?? 0;
 
-		const currentTime = this.timeSource.getTime();
+		const currentTime = this.timerData.timeSource.getTime();
 
 		return (
-			this.timerEngineProps.timeElapsed +
-			(currentTime - this.timerEngineProps.lastTick)
+			this.timerData.timeElapsed + (currentTime - this.timerData.lastTick)
 		);
 	}
 
 	public getDisplayTimeSec(): number {
-		if (!this.mode) return 0;
-		return this.mode.getTimeValueCapped(this.getTimeSec());
+		if (!this.timerData.mode) return 0;
+		return this.timerData.mode.getTimeValueCapped(this.getTimeSec());
 	}
 
-	public static getInstance(): TimerEngine {
-		return (TimerEngine.instance ??= new TimerEngine());
+	public getReadOnlyTimer(): ReadOnlyTimer {
+		return new ReadOnlyTimer(this);
 	}
 }
-
-export default TimerEngine.getInstance();
