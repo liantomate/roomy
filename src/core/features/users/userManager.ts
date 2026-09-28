@@ -26,6 +26,14 @@ class UserManager {
 		if (!response.isSuccessful)
 			return errorResponse("GENERAL_QUERY_ERROR", response.error);
 
+		// Disallow multifetches for now, refresh page for another fetch
+		// TODO: allow automated fetching soon after MVP
+		if (this.size > 0)
+			return errorResponse(
+				"GENERAL_INIT_ERROR",
+				"Users already fetched, refresh page to fetch new users",
+			);
+
 		for (const account of response.additional!) {
 			const user = await User.createFromAccount(account);
 			this.users[user.data!.id] = user.data!;
@@ -34,6 +42,12 @@ class UserManager {
 		this.size = Object.keys(this.users).length;
 
 		return successResponse(null);
+	}
+
+	public resetUserManager() {
+		this.size = 0;
+		this.users = {};
+		this.currentUserId = "";
 	}
 
 	public getSize(): number {
