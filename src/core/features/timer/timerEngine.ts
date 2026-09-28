@@ -95,6 +95,14 @@ export class TimerEngine {
 		);
 	}
 
+	public setStatus(newStatus: TimerStatus) {
+		if (this.timerData.status === newStatus) return;
+
+		if (newStatus === "paused") this.pause();
+		else if (newStatus === "running") this.resume();
+		else if (newStatus === "idle") this.reset();
+	}
+
 	public getDisplayTimeSec(): number {
 		if (!this.timerData.mode) return 0;
 		return this.timerData.mode.getTimeValueCapped(this.getTimeSec());
