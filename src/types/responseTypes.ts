@@ -20,7 +20,8 @@ export type ResponseErrorCode =
 	| "GENERAL_AUTH_NO_USER_FOUND"
 	| "GENERAL_QUERY_ERROR"
 	| "GENERAL_NETWORK_ERROR"
-	| "GENERAL_FATAL_ERROR";
+	| "GENERAL_FATAL_ERROR"
+	| "GENERAL_INIT_ERROR";
 
 export type HookResponse<T> = {
 	data?: T | null;
@@ -37,7 +38,7 @@ export function errorResponse<T>(
 		data: undefined,
 		error: {
 			code: code,
-			message: message,
+			message: message.toLowerCase(),
 		},
 	};
 }
@@ -61,7 +62,7 @@ export function generalResponse<T>(
 				? null
 				: {
 						code: code!,
-						message: message!,
+						message: message!.toLowerCase(),
 					},
 	};
 }
