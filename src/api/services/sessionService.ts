@@ -153,6 +153,59 @@ const sessionService = {
 		};
 	},
 
+	async subscribeToSessions(
+		onInsert: (session: ActiveSession) => void,
+		onUpdate: (session: ActiveSession) => void,
+		onDelete: (session: ActiveSession) => void,
+	): Promise<APIResponse<null>> {
+		await supabase
+			.channel("active_session")
+			.on(
+				"postgres_changes",
+				{
+					event: "INSERT",
+					schema: "public",
+					table: "active_session",
+				},
+				(payload) => {
+					onInsert(mapActiveSession(payload));
+				},
+			)
+			.on(
+				"postgres_changes",
+				{
+					event: "UPDATE",
+					schema: "public",
+					table: "active_session",
+				},
+				(payload) => {
+					onUpdate(mapActiveSession(payload));
+				},
+			)
+			.on(
+				"postgres_changes",
+				{
+					event: "DELETE",
+					schema: "public",
+					table: "active_session",
+				},
+				(payload) => {
+					onDelete(mapActiveSession(payload));
+				},
+			)
+			.subscribe((status, error) => {
+				// TODO: Handle this error better nex time
+				console.error("SUBSCRIPTION ERROR: ", status, error);
+			});
+
+		return {
+			isSuccessful: true,
+			code: "SUCCESS",
+			message: "Successfully subscribed to active session updates",
+			additional: null,
+		};
+	},
+
 	async getUserHistoryById(userId: string): Promise<APIResponse<Session[]>> {
 		const { data, error } = await supabase
 			.from("session_history")
