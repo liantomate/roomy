@@ -4,7 +4,7 @@ import {
 	successResponse,
 	type HookResponse,
 } from "../../../types/responseTypes";
-import User from "./user";
+import { User } from "./user";
 
 class UserManager {
 	private static instance: UserManager | null = null;

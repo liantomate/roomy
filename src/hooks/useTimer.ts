@@ -3,7 +3,7 @@ import timerApp from "../apps/timerApp";
 import type { HookResponseError } from "../types/responseTypes";
 import type { TimerModes, TimerStatus } from "../types/timerTypes";
 import userApp from "../apps/userApp";
-import type User from "../core/features/users/user";
+import { type User } from "../core/features/users/user";
 
 type TimerOperations = {
 	startTimer: (duration: number) => void;

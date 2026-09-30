@@ -13,7 +13,7 @@ import {
 	type HookResponse,
 } from "../../../types/responseTypes";
 
-class User {
+export class User {
 	public readonly id: string;
 	public readonly name: string;
 	public readonly joinDate: Date;
@@ -63,6 +63,20 @@ class User {
 
 		return successResponse(response.additional);
 	}
+
+	public getReadOnlyUser(): ReadOnlyUser {
+		return new ReadOnlyUser(this.id, this.name, this.joinDate);
+	}
 }
 
-export default User;
+export class ReadOnlyUser {
+	public readonly id: string;
+	public readonly name: string;
+	public readonly joinDate: Date;
+
+	public constructor(id: string, name: string, joinDate: Date) {
+		this.id = id;
+		this.name = name;
+		this.joinDate = joinDate;
+	}
+}

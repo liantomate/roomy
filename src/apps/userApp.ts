@@ -1,5 +1,5 @@
 import AuthManager from "../core/features/auth/authManager";
-import type User from "../core/features/users/user";
+import { type User } from "../core/features/users/user";
 import UserManager from "../core/features/users/userManager";
 import {
 	errorResponse,
