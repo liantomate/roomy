@@ -23,9 +23,11 @@ export type ResponseErrorCode =
 	| "GENERAL_FATAL_ERROR"
 	| "GENERAL_INIT_ERROR";
 
+export type HookResponseError = { code: ResponseErrorCode; message: string };
+
 export type HookResponse<T> = {
 	data?: T | null;
-	error?: { code: ResponseErrorCode; message: string } | null;
+	error?: HookResponseError | null;
 };
 
 export type TernaryHookState = "idle" | "loading" | "done";
