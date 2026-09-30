@@ -1,5 +1,5 @@
 import AuthManager from "../core/features/auth/authManager";
-import { type User } from "../core/features/users/user";
+import { ReadOnlyUser, type User } from "../core/features/users/user";
 import UserManager from "../core/features/users/userManager";
 import {
 	errorResponse,
@@ -55,9 +55,26 @@ class UserApp {
 		return UserManager.getCurrentUser();
 	}
 
-	public getAllUsers(): User[] | undefined {
+	public getUserById(id: string): ReadOnlyUser | undefined {
 		if (!this.hasInit) return undefined;
-		return UserManager.getAllUsers();
+
+		const users = UserManager.getAllUsers();
+		if (!users) return undefined;
+
+		for (const user of users)
+			if (user.id === id) return user.getReadOnlyUser();
+		return undefined;
+	}
+
+	public getAllUsers(): ReadOnlyUser[] | undefined {
+		if (!this.hasInit) return undefined;
+
+		const readOnlyUsers: ReadOnlyUser[] = [];
+		const users = UserManager.getAllUsers();
+		if (!users) return undefined;
+
+		for (const user of users) readOnlyUsers.push(user.getReadOnlyUser());
+		return readOnlyUsers;
 	}
 }
 
