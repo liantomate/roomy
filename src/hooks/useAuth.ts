@@ -1,13 +1,21 @@
 import { useEffect, useState } from "react";
-import {
-	type ResponseErrorCode,
-	generalResponseFromArr,
-} from "../types/responseTypes";
+import { type HookResponseError } from "../types/responseTypes";
 import AuthManager from "../core/features/auth/authManager";
+
+type AuthOperations = {
+	signup: (
+		name: string,
+		email: string,
+		password: string,
+		token: string,
+	) => void;
+	login: (email: string, password: string) => void;
+	logout: () => void;
+};
 
 export function useAuth() {
 	const [isAuthenticated, setAuthenticated] = useState(false);
-	const [error, setError] = useState<[ResponseErrorCode, string]>();
+	const [error, setError] = useState<HookResponseError>();
 
 	const [isInitializing, setInitializing] = useState(false);
 	const [isSigningUp, setSigningUp] = useState(false);
@@ -46,8 +54,7 @@ export function useAuth() {
 				password,
 				token,
 			);
-			if (response.error)
-				setError([response.error.code, response.error.message]);
+			if (response.error) setError(response.error);
 			else setAuthenticated(true);
 		} finally {
 			setSigningUp(false);
@@ -60,8 +67,7 @@ export function useAuth() {
 
 		try {
 			const response = await AuthManager.login(email, password);
-			if (response.error)
-				setError([response.error.code, response.error.message]);
+			if (response.error) setError(response.error);
 			else setAuthenticated(true);
 		} finally {
 			setLoggingIn(false);
@@ -74,27 +80,28 @@ export function useAuth() {
 
 		try {
 			const response = await AuthManager.logout();
-			if (response.error)
-				setError([response.error.code, response.error.message]);
+			if (response.error) setError(response.error);
 			else setAuthenticated(false);
 		} finally {
 			setLoggingOut(false);
 		}
 	}
 
-	return {
-		isAuthenticated: isAuthenticated,
-		isInitializing: isInitializing,
-
+	const authOperations: AuthOperations = {
 		signup: signup,
-		isSigningUp: isSigningUp,
-
 		login: login,
-		isLoggingIn: isLoggingIn,
-
 		logout: logout,
+	};
+
+	return {
+		error: error,
+
+		isInitializing: isInitializing,
+		isSigningUp: isSigningUp,
+		isLoggingIn: isLoggingIn,
 		isLoggingOut: isLoggingOut,
 
-		authData: generalResponseFromArr(null, error),
+		isAuthenticated: isAuthenticated,
+		authOperations: authOperations,
 	};
 }
