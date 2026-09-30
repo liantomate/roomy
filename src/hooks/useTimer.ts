@@ -1,29 +1,48 @@
 import { useEffect, useState } from "react";
-import TimerApp from "../apps/timerApp";
 import { formatTimeMMSS } from "../core/utils/timerUtil";
+import timerApp from "../apps/timerApp";
+import type { HookResponse } from "../types/responseTypes";
 
 function useTimer(updateTime: number = 1000) {
-	const timerApp = new TimerApp();
-
+	const [error, setError] = useState<HookResponse<null>>();
 	const [, triggerRerender] = useState(0);
 
 	useEffect(() => {
+		const initTimer = async (): Promise<HookResponse<null>> => {
+			const initResponse = await timerApp.init();
+			if (initResponse.error) {
+				console.error(initResponse.error);
+				setError(initResponse);
+			}
+
+			return initResponse;
+		};
+		initTimer();
+
+		// Setup interval
 		const interval = setInterval(() => {
 			triggerRerender((x) => x + 1);
 		}, updateTime);
+
 		return () => clearInterval(interval);
 	}, []);
 
 	return {
-		startTimer: (duration: number) => timerApp.start("timer", duration),
-		startCounter: () => timerApp.start("counter"),
-		reset: () => timerApp.reset(),
+		startTimer: (duration: number) => {
+			console.log(duration);
+		},
+		startCounter: () => {
+			console.log("counter");
+		},
+		reset: () => {},
 		setPause: (shouldPause: boolean) => {
-			shouldPause ? timerApp.pause() : timerApp.resume;
+			// shouldPause ? timerApp.pause() : timerApp.resume;
+			console.log(shouldPause);
 		},
 
-		status: timerApp.getStatus(),
-		elapsed: formatTimeMMSS(timerApp.getDisplayTimeSec()),
+		status: "idle",
+		elapsed: formatTimeMMSS(1500),
+		error: error,
 	};
 }
 
