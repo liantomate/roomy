@@ -68,14 +68,14 @@ export function createHookOperation<T, Args extends unknown[] = []>(
 	func: (...args: Args) => Promise<void>,
 	isLoading: boolean,
 	error: HookResponseError | null | undefined,
-	data: T | null,
-) {
+	data: T | undefined | null,
+): HookOperation<T, Args> {
 	return {
 		execute: func,
 		state: {
 			status: isLoading ? "loading" : "idle",
 			error: error ?? null,
-			data: data,
+			data: data ?? undefined,
 		},
 	};
 }
