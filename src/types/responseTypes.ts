@@ -23,15 +23,26 @@ export type ResponseErrorCode =
 	| "GENERAL_FATAL_ERROR"
 	| "GENERAL_INIT_ERROR";
 
+// Used by Hook <-> App <-> Logic
 export type HookResponseError = { code: ResponseErrorCode; message: string };
-
 export type HookResponse<T> = {
 	data?: T | null;
 	error?: HookResponseError | null;
 };
 
-export type TernaryHookState = "idle" | "loading" | "done";
+// Used by Presentation <-> Hook
+export type HookOperationStatus = "idle" | "loading";
+export type HookOperationState<T> = {
+	status: HookOperationStatus;
+	error: HookResponseError | null;
+	data?: T;
+};
+export type HookOperation<T, Args extends unknown[] = []> = {
+	execute: (...args: Args) => Promise<void>;
+	state: HookOperationState<T>;
+};
 
+// ====== FOR HOOK RESPONSES =========== //
 export function errorResponse<T>(
 	code: ResponseErrorCode,
 	message: string,
@@ -52,30 +63,19 @@ export function successResponse<T>(data: T) {
 	};
 }
 
-export function generalResponse<T>(
-	data: T | null = null,
-	code: ResponseErrorCode | null = null,
-	message: string | null = null,
-): HookResponse<T> {
+// ======= FOR HOOK OPS ============ //
+export function createHookOperation<T, Args extends unknown[] = []>(
+	func: (...args: Args) => Promise<void>,
+	isLoading: boolean,
+	error: HookResponseError | null | undefined,
+	data: T | null,
+) {
 	return {
-		data: data,
-		error:
-			!code || !message
-				? null
-				: {
-						code: code!,
-						message: message!.toLowerCase(),
-					},
+		execute: func,
+		state: {
+			status: isLoading ? "loading" : "idle",
+			error: error ?? null,
+			data: data,
+		},
 	};
-}
-
-export function generalResponseFromArr<T>(
-	data: T | null = null,
-	error: [ResponseErrorCode, string] | null = null,
-): HookResponse<T> {
-	return generalResponse(
-		data,
-		error ? error[0] : null,
-		error ? error[1] : null,
-	);
 }
