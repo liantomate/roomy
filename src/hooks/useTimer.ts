@@ -1,16 +1,12 @@
 import { useEffect, useState } from "react";
 import timerApp from "../apps/timerApp";
-import type { HookResponseError } from "../types/responseTypes";
+import {
+	createHookOperation,
+	type HookResponseError,
+} from "../types/responseTypes";
 import type { TimerModes, TimerStatus } from "../types/timerTypes";
 import userApp from "../apps/userApp";
 import { type User } from "../core/features/users/user";
-
-type TimerOperations = {
-	startTimer: (duration: number) => void;
-	startCounter: () => void;
-	reset: () => void;
-	setPause: (shouldPause: boolean) => void;
-};
 
 type TimerData = {
 	status: TimerStatus;
@@ -18,8 +14,12 @@ type TimerData = {
 };
 
 function useTimer(updateTime: number = 1000) {
-	const [error, setError] = useState<HookResponseError>();
 	const [user, setUser] = useState<User>();
+
+	const [initError, setInitError] = useState<HookResponseError>();
+	const [startError, setStartError] = useState<HookResponseError>();
+	const [resetError, setResetError] = useState<HookResponseError>();
+	const [pauseError, setPauseError] = useState<HookResponseError>();
 
 	const [isTimerInit, setTimerInit] = useState(false);
 	const [isTimerStarting, setTimerStarting] = useState(false);
@@ -30,20 +30,28 @@ function useTimer(updateTime: number = 1000) {
 
 	useEffect(() => {
 		const initTimer = async () => {
-			setTimerInit(false);
+			setTimerInit(true);
+			setInitError(undefined);
 			try {
 				const initResponse = await timerApp.init();
 				const user = userApp.getCurrentUser();
 
 				if (initResponse.error) {
-					setError(initResponse.error);
+					setInitError(initResponse.error);
 					return;
 				}
 
-				if (!user) return;
+				if (!user) {
+					setInitError({
+						code: "GENERAL_INIT_ERROR",
+						message: "No active user found",
+					});
+					return;
+				}
+
 				setUser(user);
 			} finally {
-				setTimerInit(true);
+				setTimerInit(false);
 			}
 		};
 		initTimer();
@@ -59,10 +67,11 @@ function useTimer(updateTime: number = 1000) {
 	async function start(mode: TimerModes, duration: number = 86400) {
 		if (isTimerStarting) return;
 		setTimerStarting(true);
+		setStartError(undefined);
 
 		try {
 			const response = await timerApp.start(mode, duration);
-			if (response.error) setError(response.error);
+			if (response.error) setStartError(response.error);
 		} finally {
 			setTimerStarting(false);
 		}
@@ -71,10 +80,11 @@ function useTimer(updateTime: number = 1000) {
 	async function reset() {
 		if (isTimerResetting) return;
 		setTimerResetting(true);
+		setResetError(undefined);
 
 		try {
 			const response = await timerApp.reset();
-			if (response.error) setError(response.error);
+			if (response.error) setResetError(response.error);
 		} finally {
 			setTimerResetting(false);
 		}
@@ -83,29 +93,18 @@ function useTimer(updateTime: number = 1000) {
 	async function setPause(shouldPause: boolean) {
 		if (isTimerPausing) return;
 		setTimerPausing(true);
+		setPauseError(undefined);
 
 		try {
 			const pauseFunction = shouldPause
 				? timerApp.pause
 				: timerApp.resume;
 			const response = await pauseFunction();
-			if (response.error) setError(response.error);
+			if (response.error) setPauseError(response.error);
 		} finally {
 			setTimerPausing(false);
 		}
 	}
-
-	const timerOperations: TimerOperations = {
-		startTimer: (duration: number) => {
-			start("timer", duration);
-		},
-		startCounter: () => {
-			start("counter");
-		},
-
-		reset: () => reset(),
-		setPause: (shouldPause: boolean) => setPause(shouldPause),
-	};
 
 	const timer = timerApp.getTimerByID(user?.id ?? "");
 	const timerData: TimerData = {
@@ -114,15 +113,48 @@ function useTimer(updateTime: number = 1000) {
 	};
 
 	return {
-		error: error,
+		init: createHookOperation<TimerData, []>(
+			async () => {},
+			isTimerInit,
+			initError,
+			timerData,
+		),
 
-		isTimerInit: isTimerInit,
-		isTimerStarting: isTimerStarting,
-		isTimerResetting: isTimerResetting,
-		isTimerPausing: isTimerPausing,
+		startTimer: createHookOperation<null, [duration: number]>(
+			async (duration: number) => {
+				await start("timer", duration);
+			},
+			isTimerStarting,
+			startError,
+			null,
+		),
 
-		timerOperations: timerOperations,
-		timerData: timerData,
+		startCounter: createHookOperation<null, []>(
+			async () => {
+				await start("counter");
+			},
+			isTimerStarting,
+			startError,
+			null,
+		),
+
+		reset: createHookOperation<null, []>(
+			async () => {
+				await reset();
+			},
+			isTimerResetting,
+			resetError,
+			null,
+		),
+
+		setPause: createHookOperation<null, [shouldPause: boolean]>(
+			async (shouldPause: boolean) => {
+				await setPause(shouldPause);
+			},
+			isTimerPausing,
+			pauseError,
+			null,
+		),
 	};
 }
 
