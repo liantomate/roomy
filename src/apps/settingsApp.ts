@@ -1,7 +1,6 @@
 import { SETTINGS_THEME } from "../core/features/storage/localStorageKeys";
 import LocalStorageManager from "../core/features/storage/localStorageManager";
-
-type ThemeValues = "system" | "light" | "dark";
+import type { ThemeValues } from "../types/settingsTypes";
 
 class SettingsApp {
 	private static instance: SettingsApp | null = null;
