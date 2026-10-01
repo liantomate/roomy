@@ -1,21 +1,17 @@
 import { useEffect, useState } from "react";
-import { type HookResponseError } from "../types/responseTypes";
+import {
+	createHookOperation,
+	type HookResponseError,
+} from "../types/responseTypes";
 import AuthManager from "../core/features/auth/authManager";
-
-type AuthOperations = {
-	signup: (
-		name: string,
-		email: string,
-		password: string,
-		token: string,
-	) => void;
-	login: (email: string, password: string) => void;
-	logout: () => void;
-};
 
 export function useAuth() {
 	const [isAuthenticated, setAuthenticated] = useState(false);
-	const [error, setError] = useState<HookResponseError>();
+
+	const [authError, setAuthError] = useState<HookResponseError>();
+	const [signupError, setSignupError] = useState<HookResponseError>();
+	const [loginError, setLoginError] = useState<HookResponseError>();
+	const [logoutError, setLogoutError] = useState<HookResponseError>();
 
 	const [isInitializing, setInitializing] = useState(false);
 	const [isSigningUp, setSigningUp] = useState(false);
@@ -25,11 +21,12 @@ export function useAuth() {
 	useEffect(() => {
 		async function initialize() {
 			setInitializing(true);
-			setError(undefined);
+			setAuthError(undefined);
 
 			try {
 				const response = await AuthManager.isAuthenticated();
 				setAuthenticated(response.data != null);
+				if (response.error) setAuthError(response.error);
 			} finally {
 				setInitializing(false);
 			}
@@ -45,7 +42,7 @@ export function useAuth() {
 		token: string,
 	) {
 		setSigningUp(true);
-		setError(undefined);
+		setSignupError(undefined);
 
 		try {
 			const response = await AuthManager.signup(
@@ -54,7 +51,7 @@ export function useAuth() {
 				password,
 				token,
 			);
-			if (response.error) setError(response.error);
+			if (response.error) setSignupError(response.error);
 			else setAuthenticated(true);
 		} finally {
 			setSigningUp(false);
@@ -63,11 +60,11 @@ export function useAuth() {
 
 	async function login(email: string, password: string) {
 		setLoggingIn(true);
-		setError(undefined);
+		setLoginError(undefined);
 
 		try {
 			const response = await AuthManager.login(email, password);
-			if (response.error) setError(response.error);
+			if (response.error) setLoginError(response.error);
 			else setAuthenticated(true);
 		} finally {
 			setLoggingIn(false);
@@ -76,32 +73,58 @@ export function useAuth() {
 
 	async function logout() {
 		setLoggingOut(true);
-		setError(undefined);
+		setLogoutError(undefined);
 
 		try {
 			const response = await AuthManager.logout();
-			if (response.error) setError(response.error);
+			if (response.error) setLogoutError(response.error);
 			else setAuthenticated(false);
 		} finally {
 			setLoggingOut(false);
 		}
 	}
 
-	const authOperations: AuthOperations = {
-		signup: signup,
-		login: login,
-		logout: logout,
-	};
-
 	return {
-		error: error,
+		init: createHookOperation<boolean, []>(
+			async () => {},
+			isInitializing,
+			authError,
+			isAuthenticated,
+		),
 
-		isInitializing: isInitializing,
-		isSigningUp: isSigningUp,
-		isLoggingIn: isLoggingIn,
-		isLoggingOut: isLoggingOut,
+		signup: createHookOperation<
+			null,
+			[name: string, email: string, password: string, token: string]
+		>(
+			async (
+				name: string,
+				email: string,
+				password: string,
+				token: string,
+			) => {
+				await signup(name, email, password, token);
+			},
+			isSigningUp,
+			signupError,
+			null,
+		),
 
-		isAuthenticated: isAuthenticated,
-		authOperations: authOperations,
+		login: createHookOperation<null, [email: string, password: string]>(
+			async (email: string, password: string) => {
+				await login(email, password);
+			},
+			isLoggingIn,
+			loginError,
+			null,
+		),
+
+		logout: createHookOperation<null, []>(
+			async () => {
+				await logout();
+			},
+			isLoggingOut,
+			logoutError,
+			null,
+		),
 	};
 }
