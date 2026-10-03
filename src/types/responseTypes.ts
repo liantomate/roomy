@@ -14,6 +14,8 @@ export type ResponseErrorCode =
 	| "SIGNUP_TOKEN_INVALID_FORMAT"
 	| "SIGNUP_AUTH_NETWORK_ERROR"
 	| "SIGNUP_AUTH_FATAL_ERROR"
+	| "LOGIN_EMAIL_EMPTY"
+	| "LOGIN_PASSWORD_EMPTY"
 	| "LOGIN_AUTH_INVALID_CREDS"
 	| "LOGOUT_AUTH_FATAL_ERROR"
 	// ===== useTimer Errors ===== //
@@ -54,7 +56,7 @@ export function errorResponse<T>(
 		data: undefined,
 		error: {
 			code: code,
-			message: message.toLowerCase(),
+			message: message.toLocaleUpperCase(),
 		},
 	};
 }

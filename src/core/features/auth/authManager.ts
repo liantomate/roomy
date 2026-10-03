@@ -91,6 +91,14 @@ class AuthManager {
 		email: string,
 		password: string,
 	): Promise<HookResponse<string>> {
+		if (email.length === 0)
+			return errorResponse("LOGIN_EMAIL_EMPTY", "Email cannot be empty");
+		if (password.length === 0)
+			return errorResponse(
+				"LOGIN_PASSWORD_EMPTY",
+				"Password cannot be empty",
+			);
+
 		const response = await authService.logIn(email, password);
 		if (!response.isSuccessful)
 			return errorResponse("LOGIN_AUTH_INVALID_CREDS", response.error);
