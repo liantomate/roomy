@@ -32,9 +32,9 @@ class AuthManager {
 				`Name can't be longer than ${AuthManager.MAX_NAME_LEN} characters`,
 			);
 
-		const nameHasInvalidChars = name
-			.split(" ")
-			.some((c) => !AuthManager.VALID_NAME_CHARS.includes(c));
+		const nameHasInvalidChars = [...name].some(
+			(c) => !AuthManager.VALID_NAME_CHARS.includes(c),
+		);
 		if (nameHasInvalidChars)
 			return errorResponse(
 				"SIGNUP_NAME_HAS_INVALID_CHARS",
