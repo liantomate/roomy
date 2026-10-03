@@ -57,6 +57,16 @@ class AuthManager {
 				`Password must have at least ${AuthManager.MIN_PASSWORD_LEN} characters`,
 			);
 
+		const isTokenInUUIDFormat =
+			/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+				token,
+			);
+		if (!isTokenInUUIDFormat)
+			return errorResponse(
+				"SIGNUP_TOKEN_INVALID_FORMAT",
+				"Token is not in a valid UUID format",
+			);
+
 		const response = await authService.signUp(name, email, password, token);
 
 		if (!response.isSuccessful) {

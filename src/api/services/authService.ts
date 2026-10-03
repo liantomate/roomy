@@ -4,7 +4,7 @@ import supabase from "../transport/client";
 
 async function formatError(error: FunctionsError): Promise<string> {
 	const easyError = await error.context.json();
-	return `${easyError.status.code} ${easyError.status.message}`;
+	return `${easyError.status.message}`;
 }
 
 const authService = {
