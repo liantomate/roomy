@@ -41,6 +41,9 @@ class AuthManager {
 				`Name can only have the following characters: ${AuthManager.VALID_NAME_CHARS}`,
 			);
 
+		if (email.length === 0)
+			return errorResponse("SIGNUP_EMAIL_EMPTY", "Email cannot be empty");
+
 		const isValidEmail =
 			/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/.test(
 				email,
@@ -56,6 +59,9 @@ class AuthManager {
 				"SIGNUP_PASSWORD_TOO_SHORT",
 				`Password must have at least ${AuthManager.MIN_PASSWORD_LEN} characters`,
 			);
+
+		if (token.length === 0)
+			return errorResponse("SIGNUP_TOKEN_EMPTY", "Token cannot be empty");
 
 		const isTokenInUUIDFormat =
 			/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
