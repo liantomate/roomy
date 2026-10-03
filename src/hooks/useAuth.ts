@@ -1,38 +1,96 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import {
 	createHookOperation,
 	type HookResponseError,
 } from "../types/responseTypes";
 import AuthManager from "../core/features/auth/authManager";
 
-export function useAuth() {
-	const [isAuthenticated, setAuthenticated] = useState(false);
+type AuthSnapshot = {
+	isAuthenticated: boolean;
+	initialized: boolean;
+	initError: HookResponseError | undefined;
+};
 
-	const [authError, setAuthError] = useState<HookResponseError>();
+class AuthStore {
+	private snapshot: AuthSnapshot = {
+		isAuthenticated: false,
+		initialized: false,
+		initError: undefined,
+	};
+
+	private listeners = new Set<() => void>();
+
+	public setInitialized(isAuthenticated: boolean, error?: HookResponseError) {
+		this.snapshot = {
+			...this.snapshot,
+			isAuthenticated,
+			initialized: error == null,
+			initError: error,
+		};
+		this.listeners.forEach((callback) => callback());
+	}
+
+	public setAuthenticated(isAuthenticated: boolean) {
+		this.snapshot = {
+			...this.snapshot,
+			isAuthenticated,
+		};
+		this.listeners.forEach((callback) => callback());
+	}
+
+	public getSnapshot = (): AuthSnapshot => {
+		return this.snapshot;
+	};
+
+	public subscribe = (callback: () => void): (() => void) => {
+		this.listeners.add(callback);
+		return () => {
+			this.listeners.delete(callback);
+		};
+	};
+}
+
+const authStore = new AuthStore();
+
+let initialization: Promise<void> | undefined;
+async function initializeAuth(): Promise<void | undefined> {
+	if (initialization) return initialization;
+
+	async function init() {
+		try {
+			const response = await AuthManager.isAuthenticated();
+			authStore.setInitialized(
+				response.data != null,
+				response.error ?? undefined,
+			);
+		} catch (err: unknown) {
+			authStore.setInitialized(false, {
+				code: "GENERAL_INIT_ERROR",
+				message: "An unknown auth error occured",
+			});
+		}
+	}
+
+	initialization = init();
+	return initialization;
+}
+
+export function useAuth() {
+	const authSnapshot = useSyncExternalStore(
+		authStore.subscribe,
+		authStore.getSnapshot,
+	);
+
 	const [signupError, setSignupError] = useState<HookResponseError>();
 	const [loginError, setLoginError] = useState<HookResponseError>();
 	const [logoutError, setLogoutError] = useState<HookResponseError>();
 
-	const [isInitializing, setInitializing] = useState(false);
 	const [isSigningUp, setSigningUp] = useState(false);
 	const [isLoggingIn, setLoggingIn] = useState(false);
 	const [isLoggingOut, setLoggingOut] = useState(false);
 
 	useEffect(() => {
-		async function initialize() {
-			setInitializing(true);
-			setAuthError(undefined);
-
-			try {
-				const response = await AuthManager.isAuthenticated();
-				setAuthenticated(response.data != null);
-				if (response.error) setAuthError(response.error);
-			} finally {
-				setInitializing(false);
-			}
-		}
-
-		initialize();
+		initializeAuth();
 	}, []);
 
 	async function signup(
@@ -52,7 +110,7 @@ export function useAuth() {
 				token,
 			);
 			if (response.error) setSignupError(response.error);
-			else setAuthenticated(true);
+			else authStore.setAuthenticated(true);
 		} finally {
 			setSigningUp(false);
 		}
@@ -65,7 +123,7 @@ export function useAuth() {
 		try {
 			const response = await AuthManager.login(email, password);
 			if (response.error) setLoginError(response.error);
-			else setAuthenticated(true);
+			else authStore.setAuthenticated(true);
 		} finally {
 			setLoggingIn(false);
 		}
@@ -78,7 +136,7 @@ export function useAuth() {
 		try {
 			const response = await AuthManager.logout();
 			if (response.error) setLogoutError(response.error);
-			else setAuthenticated(false);
+			else authStore.setAuthenticated(false);
 		} finally {
 			setLoggingOut(false);
 		}
@@ -87,9 +145,9 @@ export function useAuth() {
 	return {
 		init: createHookOperation<boolean, []>(
 			async () => {},
-			isInitializing,
-			authError,
-			isAuthenticated,
+			false,
+			authSnapshot.initError,
+			authSnapshot.isAuthenticated,
 		),
 
 		signup: createHookOperation<
