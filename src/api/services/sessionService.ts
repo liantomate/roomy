@@ -1,9 +1,99 @@
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { APIResponse } from "../../types/api.types";
 import type { ActiveSession, Session } from "../../types/database.types";
 import type { TimerStatus } from "../../types/timerTypes";
 import { mapActiveSession, mapSession } from "../mapper/typeMapper";
 import supabase from "../transport/client";
 
+class SessionChannel {
+	private channel?: RealtimeChannel;
+
+	private isSuccessful: boolean = true;
+	private status: string = "";
+
+	public start(
+		onInsert: (session: ActiveSession) => void,
+		onUpdate: (session: ActiveSession) => void,
+		onDelete: (session: ActiveSession) => void,
+	) {
+		if (this.channel) return;
+
+		this.channel = supabase
+			.channel("active_session")
+			.on(
+				"postgres_changes",
+				{
+					event: "INSERT",
+					schema: "public",
+					table: "active_session",
+				},
+				(payload) => {
+					onInsert(mapActiveSession(payload));
+				},
+			)
+			.on(
+				"postgres_changes",
+				{
+					event: "UPDATE",
+					schema: "public",
+					table: "active_session",
+				},
+				(payload) => {
+					onUpdate(mapActiveSession(payload));
+				},
+			)
+			.on(
+				"postgres_changes",
+				{
+					event: "DELETE",
+					schema: "public",
+					table: "active_session",
+				},
+				(payload) => {
+					onDelete(mapActiveSession(payload));
+				},
+			);
+
+		this.channel.subscribe((status, error) => {
+			switch (status) {
+				case "SUBSCRIBED":
+					this.isSuccessful = true;
+					this.status =
+						"Successfully subscribed to active_session channel";
+					break;
+				case "CHANNEL_ERROR":
+					this.isSuccessful = false;
+					this.status =
+						error?.message ??
+						"A channel error occured while setting up realtime";
+					break;
+				case "TIMED_OUT":
+					this.isSuccessful = false;
+					this.status =
+						error?.message ??
+						"Connection timed out while setting up realtime";
+					break;
+				default:
+					this.isSuccessful = false;
+					this.status = error?.message ?? "An unknown error occured";
+					break;
+			}
+		});
+	}
+
+	public async stop() {
+		if (!this.channel) return;
+
+		await supabase.removeChannel(this.channel);
+		this.channel = undefined;
+	}
+
+	public getStatus(): { isSuccessful: boolean; status: string } {
+		return { isSuccessful: this.isSuccessful, status: this.status };
+	}
+}
+
+const sessionChannel: SessionChannel = new SessionChannel();
 const sessionService = {
 	async createSession(): Promise<APIResponse<ActiveSession>> {
 		const {
@@ -25,7 +115,7 @@ const sessionService = {
 				status: "running",
 			})
 			.select()
-			.single();
+			.maybeSingle();
 
 		if (error)
 			return {
@@ -49,7 +139,7 @@ const sessionService = {
 			.from("active_sessions")
 			.select("*")
 			.eq("session_owner", userId)
-			.single();
+			.maybeSingle();
 
 		if (error)
 			return {
@@ -93,7 +183,7 @@ const sessionService = {
 				passed_status: status,
 			})
 			.select()
-			.single();
+			.maybeSingle();
 
 		if (error)
 			return {
@@ -158,52 +248,25 @@ const sessionService = {
 		onUpdate: (session: ActiveSession) => void,
 		onDelete: (session: ActiveSession) => void,
 	): Promise<APIResponse<null>> {
-		await supabase
-			.channel("active_session")
-			.on(
-				"postgres_changes",
-				{
-					event: "INSERT",
-					schema: "public",
-					table: "active_session",
-				},
-				(payload) => {
-					onInsert(mapActiveSession(payload));
-				},
-			)
-			.on(
-				"postgres_changes",
-				{
-					event: "UPDATE",
-					schema: "public",
-					table: "active_session",
-				},
-				(payload) => {
-					onUpdate(mapActiveSession(payload));
-				},
-			)
-			.on(
-				"postgres_changes",
-				{
-					event: "DELETE",
-					schema: "public",
-					table: "active_session",
-				},
-				(payload) => {
-					onDelete(mapActiveSession(payload));
-				},
-			)
-			.subscribe((status, error) => {
-				// TODO: Handle this error better nex time
-				console.error("SUBSCRIPTION ERROR: ", status, error);
-			});
+		try {
+			sessionChannel.start(onInsert, onUpdate, onDelete);
 
-		return {
-			isSuccessful: true,
-			code: "SUCCESS",
-			message: "Successfully subscribed to active session updates",
-			additional: null,
-		};
+			return {
+				isSuccessful: true,
+				code: "SUCCESS",
+				message: "Successfully subscribed to active session updates",
+				additional: null,
+			};
+		} catch (err: unknown) {
+			const errMessage =
+				err instanceof Error ? err.message : "An unknown error occured";
+			return {
+				isSuccessful: false,
+				code: "NETWORK_ERROR",
+				error: errMessage,
+				additional: null,
+			};
+		}
 	},
 
 	async getUserHistoryById(userId: string): Promise<APIResponse<Session[]>> {
