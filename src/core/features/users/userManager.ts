@@ -61,7 +61,7 @@ class UserManager {
 	public getUserById(userId: string): User | null {
 		if (this.isEmpty()) return null;
 
-		return this.users[userId] || null;
+		return this.users[userId] ?? null;
 	}
 
 	public checkAndSetUserId(userId: string): boolean {

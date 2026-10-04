@@ -96,10 +96,9 @@ function useTimer(updateTime: number = 1000) {
 		setPauseError(undefined);
 
 		try {
-			const pauseFunction = shouldPause
-				? timerApp.pause
-				: timerApp.resume;
-			const response = await pauseFunction();
+			const response = shouldPause
+				? await timerApp.pause()
+				: await timerApp.resume();
 			if (response.error) setPauseError(response.error);
 		} finally {
 			setTimerPausing(false);

@@ -11,12 +11,18 @@ import {
 class UserApp {
 	private static instance: UserApp | null = null;
 
-	private hasInit: boolean = false;
+	private isReady: Promise<HookResponse<null>>;
 
-	private constructor() {}
+	private constructor() {
+		this.isReady = this.init();
+	}
 
 	public static getInstance(): UserApp {
 		return (UserApp.instance ??= new UserApp());
+	}
+
+	public async ready(): Promise<HookResponse<null>> {
+		return this.isReady;
 	}
 
 	public async init(): Promise<HookResponse<null>> {
@@ -28,9 +34,6 @@ class UserApp {
 				authResponse.error.message,
 			);
 
-		// Set proper ID
-		UserManager.checkAndSetUserId(authResponse.data!);
-
 		// Check if users can be fetched
 		const fetchResponse = await UserManager.fetchUsers();
 		if (fetchResponse.error)
@@ -38,32 +41,22 @@ class UserApp {
 				console.error(fetchResponse.error);
 			else return fetchResponse;
 
-		this.hasInit = true;
+		// Set proper ID
+		UserManager.checkAndSetUserId(authResponse.data!);
+
 		return successResponse(null);
 	}
 
-	public reset() {
-		this.hasInit = false;
-		UserManager.resetUserManager();
-	}
-
-	public isInitialized(): boolean {
-		return this.hasInit;
-	}
-
-	public getCurrentUser(): User | undefined | null {
-		if (!this.hasInit) return null;
+	public getCurrentUser(): User | null {
 		return UserManager.getCurrentUser();
 	}
 
-	public getUserById(id: string): User | undefined {
-		if (!this.hasInit) return undefined;
-
+	public getUserById(id: string): User | null {
 		const users = UserManager.getAllUsers();
-		if (!users) return undefined;
+		if (!users) return null;
 
 		for (const user of users) if (user.id === id) return user;
-		return undefined;
+		return null;
 	}
 
 	public getReadOnlyUserById(id: string): ReadOnlyUser | undefined {
@@ -72,14 +65,10 @@ class UserApp {
 	}
 
 	public getAllUsers(): User[] | undefined {
-		if (!this.hasInit) return undefined;
-
 		return userManager.getAllUsers();
 	}
 
 	public getAllReadOnlyUsers(): ReadOnlyUser[] | undefined {
-		if (!this.hasInit) return undefined;
-
 		const readOnlyUsers: ReadOnlyUser[] = [];
 		const users = UserManager.getAllUsers();
 		if (!users) return undefined;

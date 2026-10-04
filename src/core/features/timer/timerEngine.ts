@@ -54,7 +54,9 @@ export class TimerEngine {
 	public reset(): void {
 		this.timerData.status = "idle";
 		this.timerData.mode = null;
-		this.timerData.timeSource = null;
+		this.timerData.lastTick = 0;
+		this.timerData.timeStart = 0;
+		this.timerData.timeElapsed = 0;
 		this.timerData.timeSource = null;
 	}
 

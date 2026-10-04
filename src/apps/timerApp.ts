@@ -57,25 +57,38 @@ class TimerApp {
 	}
 
 	public async init(): Promise<HookResponse<null>> {
-		if (!UserApp.isInitialized())
+		const userAppInit = await UserApp.ready();
+		const currentUser = UserApp.getCurrentUser();
+		if (userAppInit.error)
 			return errorResponse(
 				"GENERAL_INIT_ERROR",
-				"UserApp has not yet been initialized",
+				"UserApp failed to initialized, which TimerApp depends on",
+			);
+		if (!currentUser)
+			return errorResponse(
+				"GENERAL_INIT_ERROR",
+				"Failed to get current user data despite successful initialization",
 			);
 
 		this.timers = new TimerList();
 
-		sessionService.subscribeToSessions(
+		const response = await sessionService.subscribeToSessions(
 			this.handlePeerTimerInsert.bind(this),
 			this.handlePeerTimerUpdate.bind(this),
 			this.handlePeerTimerDelete.bind(this),
 		);
 
+		if (!response.isSuccessful)
+			console.error(
+				"Error subscribing to realtime active_sessions: ",
+				response.error,
+			);
+
 		// Fill list
 		const userList = UserApp.getAllUsers()!;
 		for (const user of userList) {
 			const activeSess = await user.getActiveSession();
-			// TODO:
+			// TODO: Give reliable way to handle unfetched users
 			if (activeSess.error) {
 				console.error(
 					`Unable to register user: ${user.name} with ID ${user.id}`,
@@ -83,27 +96,45 @@ class TimerApp {
 				continue;
 			}
 
-			this.timers.insert(activeSess.data!.sessionOwner, {
+			if (!activeSess.data) continue;
+
+			this.timers.insert(activeSess.data.sessionOwner, {
 				mode: new ModeCounter(DEFAULT_COUNTER_CAP),
 				status: activeSess.data!.status,
-				timeStart: activeSess.data!.sessionDate.getDate(),
-				lastTick: activeSess.data!.lastTick.getDate(),
+				timeStart: activeSess.data!.sessionDate.getTime() / 1000,
+				lastTick: activeSess.data!.lastTick.getTime() / 1000,
 				timeSource: new SystemSecTimeSource(),
 				timeElapsed: activeSess.data!.duration,
 			});
 		}
 
+		if (!this.timers.getById(currentUser.id))
+			this.timers.insert(currentUser.id, {
+				mode: new ModeCounter(DEFAULT_COUNTER_CAP),
+				status: "idle",
+				timeStart: 0,
+				lastTick: 0,
+				timeElapsed: 0,
+				timeSource: new SystemSecTimeSource(),
+			});
+
 		return successResponse(null);
 	}
 
-	private async getUserTimer(): Promise<HookResponse<TimerEngine>> {
-		if (!UserApp.isInitialized())
+	private getUserTimer(): HookResponse<TimerEngine> {
+		const user = UserApp.getCurrentUser();
+		if (!user)
 			return errorResponse(
 				"GENERAL_INIT_ERROR",
-				"UserApp has not yet been initialized",
+				"UserApp has not yet been initialized, which TimerApp depends on",
+			);
+		if (!this.timers)
+			return errorResponse(
+				"GENERAL_INIT_ERROR",
+				"TimerApp has not yet been properly initialized",
 			);
 
-		const timerEngine = this.timers!.getById(UserApp.getCurrentUser()!.id);
+		const timerEngine = this.timers.getById(user.id);
 		return successResponse(timerEngine);
 	}
 
@@ -111,8 +142,8 @@ class TimerApp {
 		this.timers!.insert(sessionData.sessionOwner, {
 			mode: new ModeCounter(DEFAULT_COUNTER_CAP),
 			status: sessionData.status,
-			timeStart: sessionData.sessionDate.getTime(),
-			lastTick: sessionData.lastTick.getTime(),
+			timeStart: sessionData.sessionDate.getTime() / 1000,
+			lastTick: sessionData.lastTick.getTime() / 1000,
 			timeSource: new SystemSecTimeSource(),
 			timeElapsed: sessionData.duration,
 		});
@@ -136,7 +167,13 @@ class TimerApp {
 		const getTimer = await this.getUserTimer();
 		if (getTimer.error)
 			return errorResponse(getTimer.error.code, getTimer.error.message);
-		const timerEngine = getTimer.data!;
+		if (!getTimer.data)
+			return errorResponse(
+				"GENERAL_QUERY_ERROR",
+				"Failed to get user timer",
+			);
+
+		const timerEngine = getTimer.data;
 
 		if (timerEngine.getStatus() !== "idle")
 			return errorResponse(
@@ -199,7 +236,7 @@ class TimerApp {
 	}
 
 	public async pause(): Promise<HookResponse<null>> {
-		const getTimer = await this.getUserTimer();
+		const getTimer = this.getUserTimer();
 		if (getTimer.error)
 			return errorResponse(getTimer.error.code, getTimer.error.message);
 		const timerEngine = getTimer.data!;
