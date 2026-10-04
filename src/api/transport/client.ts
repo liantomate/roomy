@@ -1,3 +1,7 @@
+/**
+ * This module handles the connection with Supabase
+ */
+
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
