@@ -2,7 +2,11 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { APIResponse } from "../../types/api.types";
 import type { ActiveSession, Session } from "../../types/database.types";
 import type { TimerStatus } from "../../types/timerTypes";
-import { mapActiveSession, mapSession } from "../mapper/typeMapper";
+import {
+	mapActiveSession,
+	mapSession,
+	type ActiveSessionResponse,
+} from "../mapper/typeMapper";
 import supabase from "../transport/client";
 
 class SessionChannel {
@@ -27,8 +31,10 @@ class SessionChannel {
 					schema: "public",
 					table: "active_session",
 				},
-				(payload) => {
-					onInsert(mapActiveSession(payload));
+				(payload: unknown) => {
+					onInsert(
+						mapActiveSession(payload as ActiveSessionResponse),
+					);
 				},
 			)
 			.on(
@@ -38,8 +44,10 @@ class SessionChannel {
 					schema: "public",
 					table: "active_session",
 				},
-				(payload) => {
-					onUpdate(mapActiveSession(payload));
+				(payload: unknown) => {
+					onUpdate(
+						mapActiveSession(payload as ActiveSessionResponse),
+					);
 				},
 			)
 			.on(
@@ -49,8 +57,10 @@ class SessionChannel {
 					schema: "public",
 					table: "active_session",
 				},
-				(payload) => {
-					onDelete(mapActiveSession(payload));
+				(payload: unknown) => {
+					onDelete(
+						mapActiveSession(payload as ActiveSessionResponse),
+					);
 				},
 			);
 
