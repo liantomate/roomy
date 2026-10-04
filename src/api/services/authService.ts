@@ -1,11 +1,9 @@
-import type { FunctionsError } from "@supabase/supabase-js";
-import type { APIResponse } from "../../types/api.types";
+import {
+	createAPIErrorResponse,
+	createAPISuccessResponse,
+	type APIResponse,
+} from "../../types/api.types";
 import supabase from "../transport/client";
-
-async function formatError(error: FunctionsError): Promise<string> {
-	const easyError = await error.context.json();
-	return `${easyError.status.message}`;
-}
 
 const authService = {
 	async signUp(
@@ -13,106 +11,103 @@ const authService = {
 		email: string,
 		password: string,
 		token: string,
-	): Promise<APIResponse<string[]>> {
-		const { data, error } = await supabase.functions.invoke("signup", {
-			method: "POST",
-			body: {
-				name: name,
-				email: email,
-				password: password,
-				token: token,
-			},
-		});
+	): Promise<APIResponse<void>> {
+		try {
+			const { data, error } = await supabase.functions.invoke("signup", {
+				method: "POST",
+				body: {
+					name: name,
+					email: email,
+					password: password,
+					token: token,
+				},
+			});
 
-		if (error) {
-			return {
-				isSuccessful: false,
-				code: "NETWORK_ERROR",
-				error:
-					(await formatError(error)) ||
+			if (error)
+				return createAPIErrorResponse(
+					error,
 					"Something went wrong while reaching the sign-up service",
-				additional: [],
-			};
-		}
+					"NETWORK_ERROR",
+				);
 
-		if (!data?.is_successful) {
-			return {
-				isSuccessful: false,
-				code: "SIGNUP_ERROR",
-				error: data?.status.message || "Signup failed",
-				additional: data?.status.additional || [],
-			};
-		}
+			if (!data?.is_successful)
+				return createAPIErrorResponse(
+					data?.status.message,
+					"Signup unsuccessful",
+					"SIGNUP_ERROR",
+				);
 
-		return {
-			isSuccessful: true,
-			code:
-				data.status.code === "SIGNUP_SUCCESS"
-					? "SUCCESS"
-					: "SUCCESS WITH ERROR",
-			message: data.status.message,
-			additional: data.status.additional,
-		};
+			return createAPISuccessResponse("Successfully created user", data);
+		} catch (err: unknown) {
+			return createAPIErrorResponse(
+				err,
+				"An unknown signup error occured",
+			);
+		}
 	},
 
 	async logIn(
 		email: string,
 		password: string,
 	): Promise<APIResponse<{ userId: string }>> {
-		const { data, error } = await supabase.auth.signInWithPassword({
-			email: email,
-			password: password,
-		});
-		if (error || !data.user) {
-			return {
-				isSuccessful: false,
-				code: "INVALID_CREDS",
-				error: error?.message || "Invalid email or password",
-			};
-		}
+		try {
+			const { data, error } = await supabase.auth.signInWithPassword({
+				email: email,
+				password: password,
+			});
+			if (error || !data.user)
+				return createAPIErrorResponse(
+					error,
+					"Invalid email or password",
+					"INVALID_CREDS",
+				);
 
-		return {
-			isSuccessful: true,
-			code: "SUCCESS",
-			message: "Successfully logged in",
-			additional: { userId: data.user.id },
-		};
+			return createAPISuccessResponse("Successfully logged in", {
+				userId: data.user.id,
+			});
+		} catch (err: unknown) {
+			return createAPIErrorResponse(
+				err,
+				"An unknown login error occured",
+			);
+		}
 	},
 
 	async logOut(): Promise<APIResponse<null>> {
-		const { error } = await supabase.auth.signOut();
+		try {
+			const { error } = await supabase.auth.signOut();
 
-		if (error)
-			return {
-				isSuccessful: false,
-				code: "LOGOUT_ERROR",
-				error: error.message,
-			};
+			if (error)
+				return createAPIErrorResponse(
+					error,
+					"An unknown logout error occured",
+					"LOGOUT_ERROR",
+				);
 
-		return {
-			isSuccessful: true,
-			code: "SUCCESS",
-			message: "Successfully logged out",
-			additional: null,
-		};
+			return createAPISuccessResponse("Successfully logged out", null);
+		} catch (err: unknown) {
+			return createAPIErrorResponse(
+				err,
+				"An unknown logout error occured",
+			);
+		}
 	},
 
-	async isAuthenticated(): Promise<APIResponse<{ userId: string }>> {
-		const { data, error } = await supabase.auth.getUser();
+	async isAuthenticated(): Promise<APIResponse<boolean>> {
+		try {
+			const { data, error } = await supabase.auth.getUser();
 
-		if (error || !data)
-			return {
-				isSuccessful: false,
-				code: "AUTH_ERROR",
-				error: "No authenticated user found",
-			};
+			if (error || !data)
+				return createAPIErrorResponse(
+					error,
+					"No authenticated user found",
+					"AUTH_ERROR",
+				);
 
-		return {
-			isSuccessful: true,
-			code: "SUCCESS",
-			message: "Authenticated user found",
-			additional: { userId: data.user.id },
-		};
+			return createAPISuccessResponse("Authenticated user found", true);
+		} catch (err: unknown) {
+			return createAPIErrorResponse(err, "An unknown auth error occured");
+		}
 	},
 };
 

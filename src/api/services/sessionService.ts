@@ -161,7 +161,7 @@ const sessionService = {
 		if (!data)
 			return {
 				isSuccessful: true,
-				code: "SUCCESS WITH ERROR",
+				code: "SUCCESS",
 				message: "Successful query, no active session found",
 				additional: null,
 			};

@@ -112,14 +112,14 @@ class AuthManager {
 		return successResponse(null);
 	}
 
-	public static async isAuthenticated(): Promise<HookResponse<string>> {
+	public static async isAuthenticated(): Promise<HookResponse<boolean>> {
 		const response = await authService.isAuthenticated();
 		if (!response.isSuccessful)
 			return errorResponse(
 				"GENERAL_AUTH_NO_USER_FOUND",
 				"No user signed in",
 			);
-		return successResponse(response.additional.userId);
+		return successResponse(response.additional);
 	}
 }
 
