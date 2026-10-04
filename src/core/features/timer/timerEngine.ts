@@ -13,13 +13,24 @@ export type TimerData = {
 	lastTick: number;
 };
 
+/**
+ * Pure logic module representing a timer
+ */
 export class TimerEngine {
 	private timerData: TimerData;
 
+	/**
+	 * @param data data to be used by the timer
+	 */
 	private constructor(data: TimerData) {
 		this.timerData = data;
 	}
 
+	/**
+	 * Creates a new {@linkcode TimerEngine} instance with default values
+	 *
+	 * @returns timer engine / {@linkcode TimerEngine}
+	 */
 	public static createNew(): TimerEngine {
 		return new TimerEngine({
 			status: "idle",
@@ -31,10 +42,22 @@ export class TimerEngine {
 		});
 	}
 
+	/**
+	 * Creates a new {@linkcode TimerEngine} instance from a predefined data
+	 *
+	 * @param data data to be used by the timer
+	 * @returns timer engine / {@linkcode TimerEngine}
+	 */
 	public static createFrom(data: TimerData): TimerEngine {
 		return new TimerEngine(data);
 	}
 
+	/**
+	 * Starts a timer session
+	 *
+	 * @param mode timer mode {@linkcode TimerMode}
+	 * @param source source of time {@linkcode TimeSource}
+	 */
 	public start(
 		mode: TimerMode,
 		source: TimeSource = new SystemSecTimeSource(),
@@ -51,6 +74,9 @@ export class TimerEngine {
 		this.timerData.lastTick = currentTime;
 	}
 
+	/**
+	 * Resets a timer session by setting all of its data back to their default values
+	 */
 	public reset(): void {
 		this.timerData.status = "idle";
 		this.timerData.mode = null;
@@ -60,6 +86,9 @@ export class TimerEngine {
 		this.timerData.timeSource = null;
 	}
 
+	/**
+	 * Pauses a timer and updates its data accordingly
+	 */
 	public pause(): void {
 		if (this.timerData.status !== "running") return;
 		if (!this.timerData.timeSource || !this.timerData.mode) return;
@@ -70,6 +99,9 @@ export class TimerEngine {
 		this.timerData.lastTick = currentTime;
 	}
 
+	/**
+	 * Resumes a timer and updates its data accordingly
+	 */
 	public resume(): void {
 		if (this.timerData.status !== "paused") return;
 		if (!this.timerData || !this.timerData.timeSource) return;
@@ -78,10 +110,16 @@ export class TimerEngine {
 		this.timerData.lastTick = this.timerData.timeSource.getTime();
 	}
 
+	/**
+	 * @returns status of the timer {@linkcode TimerStatus}
+	 */
 	public getStatus(): TimerStatus {
 		return this.timerData.status;
 	}
 
+	/**
+	 * @returns elapsed time since timer started (in seconds)
+	 */
 	public getTimeSec(): number {
 		if (
 			this.timerData.status !== "running" ||
@@ -97,6 +135,11 @@ export class TimerEngine {
 		);
 	}
 
+	/**
+	 * Sets the timer status to a new value, ignored if new status is the same as current
+	 *
+	 * @param newStatus new status for the timer {@linkcode TimerStatus}
+	 */
 	public setStatus(newStatus: TimerStatus) {
 		if (this.timerData.status === newStatus) return;
 
@@ -105,11 +148,17 @@ export class TimerEngine {
 		else if (newStatus === "idle") this.reset();
 	}
 
+	/**
+	 * @returns elapsed time since the timer started (in seconds) with respect to the timer mode
+	 */
 	public getDisplayTimeSec(): number {
 		if (!this.timerData.mode) return 0;
 		return this.timerData.mode.getTimeValueCapped(this.getTimeSec());
 	}
 
+	/**
+	 * @returns read only timer container for this timer engine {@linkcode ReadOnlyTimer}
+	 */
 	public getReadOnlyTimer(): ReadOnlyTimer {
 		return new ReadOnlyTimer(this);
 	}
