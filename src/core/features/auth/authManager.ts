@@ -102,7 +102,7 @@ class AuthManager {
 		const response = await authService.logIn(email, password);
 		if (!response.isSuccessful)
 			return errorResponse("LOGIN_AUTH_INVALID_CREDS", response.error);
-		return successResponse(response.additional.userId);
+		return successResponse(response.additional);
 	}
 
 	public static async logout(): Promise<HookResponse<null>> {
@@ -112,14 +112,14 @@ class AuthManager {
 		return successResponse(null);
 	}
 
-	public static async isAuthenticated(): Promise<HookResponse<boolean>> {
+	public static async isAuthenticated(): Promise<HookResponse<string>> {
 		const response = await authService.isAuthenticated();
 		if (!response.isSuccessful)
 			return errorResponse(
 				"GENERAL_AUTH_NO_USER_FOUND",
 				"No user signed in",
 			);
-		return successResponse(response.additional);
+		return successResponse(response.additional.userId);
 	}
 }
 
