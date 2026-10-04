@@ -1,11 +1,34 @@
+/**
+ * Handles how the elapsed time of a TimerEngine will be displayed (direction-wise)
+ */
 export interface TimerMode {
 	readonly timeCap: number;
 
+	/**
+	 * Returns elapsed time with respect to the format of this mode
+	 * @param elapsedTime time since the timer started (in seconds)
+	 * @returns mode-modified elapsed time (number)
+	 */
 	getTimeValue(elapsedTime: number): number;
+
+	/**
+	 * @param deltaTime time since the timer started (in seconds)
+	 * @returns true if the timer exceeds the cap boundary (depending on mode implementation), false otherwise
+	 */
 	isCompleted(deltaTime: number): boolean;
+
+	/**
+	 * Returns clamped version of {@linkcode getTimeValue}
+	 *
+	 * @param elapsedTime time since the timer started (in seconds)
+	 * @returns clamped mode-modified elapsed time
+	 */
 	getTimeValueCapped(elapsedTime: number): number;
 }
 
+/**
+ * Mode for the timer counting down
+ */
 export class ModeTimer implements TimerMode {
 	readonly timeCap: number;
 	public constructor(timeCap: number) {
@@ -26,6 +49,9 @@ export class ModeTimer implements TimerMode {
 	}
 }
 
+/**
+ * Mode for the timer counting up
+ */
 export class ModeCounter implements TimerMode {
 	readonly timeCap: number;
 	public constructor(timeCap: number) {
