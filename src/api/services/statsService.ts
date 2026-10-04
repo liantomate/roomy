@@ -7,7 +7,18 @@ import type { AccountStats } from "../../types/database.types";
 import { mapAccountStats } from "../mapper/typeMapper";
 import supabase from "../transport/client";
 
+/**
+ * Handles all user statistics-related functions
+ */
 const statsService = {
+	/**
+	 * Returns account statistics based on the provided user id
+	 *
+	 * @param userId id of the user to get account statistics of
+	 * @returns api response {@linkcode APIResponse} with data {@linkcode AccountStats}
+	 * @error QUERY_ERROR if unable to get user statistics
+	 * @error GENERAL_ERROR for unexpected errors
+	 */
 	async getStatsById(userId: string): Promise<APIResponse<AccountStats>> {
 		try {
 			const { data, error } = await supabase
@@ -23,6 +34,13 @@ const statsService = {
 					"QUERY_ERROR",
 				);
 
+			if (!data)
+				return createAPIErrorResponse(
+					null,
+					"No stats found for target user",
+					"QUERY_ERROR",
+				);
+
 			return createAPISuccessResponse(
 				"Successfully taken target user's stats",
 				mapAccountStats(data),
@@ -35,6 +53,14 @@ const statsService = {
 		}
 	},
 
+	/**
+	 * Returns account statistics belonging to the currently authenticated user
+	 *
+	 * @returns api response {@linkcode APIResponse} with data {@linkcode AccountStats}
+	 * @error AUTH_ERROR if no authenticated user is found
+	 * @error QUERY_ERROR if unable to get user statistics
+	 * @error GENERAL_ERROR for unexpected errors
+	 */
 	async getUserStats(): Promise<APIResponse<AccountStats>> {
 		try {
 			const {
