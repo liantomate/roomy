@@ -1,3 +1,14 @@
+/**
+ * This module contains timer-related utility functions that help with formatting
+ * timer behavior for timer-related pure logic modules
+ */
+
+/**
+ * Formats the given time to MM:SS format (values padded to 2 digits)
+ *
+ * @param timeValue time value (in seconds)
+ * @returns time formatted to MM:SS (string)
+ */
 export function formatTimeMMSS(timeValue: number): string {
 	const divided = timeValue / 60;
 	const minute = Math.floor(divided);
