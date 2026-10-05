@@ -35,8 +35,8 @@ class UserManager {
 			);
 
 		for (const account of response.additional!) {
-			const user = await User.createFromAccount(account);
-			this.users[user.data!.id] = user.data!;
+			const user = User.createFromAccount(account);
+			this.users[user.id] = user;
 		}
 
 		this.size = Object.keys(this.users).length;
