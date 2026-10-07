@@ -5,8 +5,6 @@ import {
 	type HookResponseError,
 } from "../types/responseTypes";
 import type { TimerModes, TimerStatus } from "../types/timerTypes";
-import userApp from "../apps/userApp";
-import { type User } from "../core/features/users/user";
 
 type TimerData = {
 	status: TimerStatus;
@@ -14,8 +12,6 @@ type TimerData = {
 };
 
 function useTimer(updateTime: number = 1000) {
-	const [user, setUser] = useState<User>();
-
 	const [initError, setInitError] = useState<HookResponseError>();
 	const [startError, setStartError] = useState<HookResponseError>();
 	const [resetError, setResetError] = useState<HookResponseError>();
@@ -33,23 +29,12 @@ function useTimer(updateTime: number = 1000) {
 			setTimerInit(true);
 			setInitError(undefined);
 			try {
-				const initResponse = await timerApp.init();
-				const user = userApp.getCurrentUser();
+				const initResponse = await timerApp.loadTimers();
 
 				if (initResponse.error) {
 					setInitError(initResponse.error);
 					return;
 				}
-
-				if (!user) {
-					setInitError({
-						code: "GENERAL_INIT_ERROR",
-						message: "No active user found",
-					});
-					return;
-				}
-
-				setUser(user);
 			} finally {
 				setTimerInit(false);
 			}
@@ -70,7 +55,11 @@ function useTimer(updateTime: number = 1000) {
 		setStartError(undefined);
 
 		try {
-			const response = await timerApp.start(mode, duration);
+			const response = await timerApp.start(
+				mode,
+				"New Session...",
+				duration,
+			);
 			if (response.error) setStartError(response.error);
 		} finally {
 			setTimerStarting(false);
@@ -105,7 +94,7 @@ function useTimer(updateTime: number = 1000) {
 		}
 	}
 
-	const timer = timerApp.getTimerByID(user?.id ?? "");
+	const timer = timerApp.getUserTimer();
 	const timerData: TimerData = {
 		status: timer?.getStatus() ?? "idle",
 		elapsedTime: timer?.getTime() ?? "00:00",

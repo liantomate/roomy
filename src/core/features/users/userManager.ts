@@ -6,6 +6,9 @@ import {
 } from "../../../types/responseTypes";
 import { User } from "./user";
 
+/**
+ * Handles user-related fetching
+ */
 class UserManager {
 	private static instance: UserManager | null = null;
 
@@ -70,8 +73,28 @@ class UserManager {
 		return true;
 	}
 
-	public getCurrentUser(): User | null {
-		return this.getUserById(this.currentUserId);
+	/**
+	 * Fetches authenticated user and returns a user instance
+	 *
+	 * @returns hook response {@linkcode HookResponse} with data {@linkcode User}
+	 * @error GENERAL_AUTH_NO_USER_FOUND if no authenticated user is found
+	 * @error GENERAL_QUERY_ERROR if error occurs while getting the user
+	 * @error GENERAL_FATAL_ERROR if an unexpected error occurs
+	 */
+	public async getCurrentUser(): Promise<HookResponse<User>> {
+		const response = await userService.getCurrentUser();
+		if (!response.isSuccessful) {
+			if (response.code === "AUTH_ERROR")
+				return errorResponse(
+					"GENERAL_AUTH_NO_USER_FOUND",
+					response.error,
+				);
+			if (response.code === "QUERY_ERROR")
+				return errorResponse("GENERAL_QUERY_ERROR", response.error);
+			return errorResponse("GENERAL_FATAL_ERROR", response.error);
+		}
+
+		return successResponse(User.createFromAccount(response.additional));
 	}
 
 	public getAllUsers(): User[] {

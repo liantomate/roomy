@@ -8,6 +8,7 @@ import {
 	type HookResponse,
 } from "../../../types/responseTypes";
 import type { TimerStatus } from "../../../types/timerTypes";
+import type { TimerMode } from "../timer/timerMode";
 
 type ActiveSessionListener = (payload: ActiveSession) => void;
 
@@ -164,8 +165,15 @@ class SessionManager {
 	 * @error GENERAL_QUERY_ERROR if an error occurs while inserting new session
 	 * @error GENERAL_FATAL_ERROR if an unexpected error occured
 	 */
-	public static async createSession(): Promise<HookResponse<null>> {
-		const response = await sessionService.createSession();
+	public static async createSession(
+		timerMode: TimerMode,
+		sessionDetails: string,
+	): Promise<HookResponse<null>> {
+		const response = await sessionService.createSession(
+			timerMode.getAsTimeMode(),
+			timerMode.timeCap,
+			sessionDetails,
+		);
 		if (!response.isSuccessful) {
 			if (response.code === "AUTH_ERROR")
 				return errorResponse(

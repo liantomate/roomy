@@ -4,7 +4,7 @@ import {
 	type APIResponse,
 } from "../../types/api.types";
 import type { ActiveSession, Session } from "../../types/database.types";
-import type { TimerStatus } from "../../types/timerTypes";
+import type { TimerModes, TimerStatus } from "../../types/timerTypes";
 import { mapActiveSession, mapSession } from "../mapper/typeMapper";
 import supabase from "../transport/client";
 
@@ -22,7 +22,11 @@ const sessionService = {
 	 * @error QUERY_ERROR if an error occurs while creating the session
 	 * @error GENERAL_ERROR for unexpected errors
 	 */
-	async createSession(): Promise<APIResponse<null>> {
+	async createSession(
+		timerMode: TimerModes,
+		timeCap: number,
+		sessionDetails: string,
+	): Promise<APIResponse<null>> {
 		try {
 			const {
 				data: { user },
@@ -41,6 +45,9 @@ const sessionService = {
 				.insert({
 					session_owner: user.id,
 					status: "running",
+					timer_mode: timerMode,
+					session_details: sessionDetails,
+					time_cap: timeCap,
 				})
 				.select()
 				.maybeSingle();

@@ -48,7 +48,7 @@ class UserApp {
 	}
 
 	public getCurrentUser(): User | null {
-		return UserManager.getCurrentUser();
+		return null; // TODO: temporary fix
 	}
 
 	public getUserById(id: string): User | null {
