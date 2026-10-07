@@ -1,5 +1,12 @@
 import type { TimerStatus } from "./timerTypes";
 
+export type TableNames = {
+	PublicAccount: "users";
+	AccountStats: "user_stats";
+	ActiveSession: "active_session";
+	SessionHistory: "session_history";
+};
+
 export type PublicAccount = {
 	userId: string;
 	name: string;
