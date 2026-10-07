@@ -7,6 +7,7 @@ import {
 	successResponse,
 	type HookResponse,
 } from "../../../types/responseTypes";
+import type { TimerStatus } from "../../../types/timerTypes";
 
 type ActiveSessionListener = (payload: ActiveSession) => void;
 
@@ -137,6 +138,75 @@ class SessionManager {
 			);
 
 		return successResponse(null);
+	}
+
+	/**
+	 * Creates a new active session for the authenticated user
+	 *
+	 * @returns hook response {@linkcode HookResponse}
+	 * @error GENERAL_AUTH_NO_USER_FOUND if no authenticated user is found
+	 * @error GENERAL_QUERY_ERROR if an error occurs while inserting new session
+	 * @error GENERAL_FATAL_ERROR if an unexpected error occured
+	 */
+	public static async createSession(): Promise<HookResponse<null>> {
+		const response = await sessionService.createSession();
+		if (!response.isSuccessful) {
+			if (response.code === "AUTH_ERROR")
+				return errorResponse(
+					"GENERAL_AUTH_NO_USER_FOUND",
+					response.error,
+				);
+			if (response.code === "QUERY_ERROR")
+				return errorResponse("GENERAL_QUERY_ERROR", response.error);
+			if (response.code === "GENERAL_ERROR")
+				return errorResponse("GENERAL_FATAL_ERROR", response.error);
+		}
+
+		return successResponse(null);
+	}
+
+	/**
+	 * Updates the active session of the authenticated user
+	 *
+	 * @param status new status for the session {@linkcode TimerStatus}
+	 * @returns hook response {@linkcode HookResponse}
+	 * @error GENERAL_AUTH_NO_USER_FOUND if no authenticated user is found
+	 * @error GENERAL_NETWORK_ERROR if an error occured while processing the update
+	 * @error GENERAL_QUERY_ERROR if an error occurs while updating session
+	 * @error GENERAL_FATAL_ERROR if an unexpected error occured
+	 */
+	public static async updateSession(
+		status: TimerStatus,
+	): Promise<HookResponse<null>> {
+		const response = await sessionService.updateSession(status);
+		if (!response.isSuccessful) {
+			if (response.code === "AUTH_ERROR")
+				return errorResponse(
+					"GENERAL_AUTH_NO_USER_FOUND",
+					response.error,
+				);
+			if (response.code === "NETWORK_ERROR")
+				return errorResponse("GENERAL_NETWORK_ERROR", response.error);
+			if (response.code === "QUERY_ERROR")
+				return errorResponse("GENERAL_QUERY_ERROR", response.error);
+			if (response.code === "GENERAL_ERROR")
+				return errorResponse("GENERAL_FATAL_ERROR", response.error);
+		}
+
+		return successResponse(null);
+	}
+
+	/**
+	 * Deletes the active session of the authenticated user
+	 *
+	 * @returns hook response {@linkcode HookResponse}
+	 * @error GENERAL_AUTH_NO_USER_FOUND if no authenticated user is found
+	 * @error GENERAL_NETWORK_ERROR if an error occured while processing the deletion
+	 * @error GENERAL_QUERY_ERROR if an error occurs while deleting session
+	 * @error GENERAL_FATAL_ERROR if an unexpected error occured
+	 */
+	public static async deleteSession(): Promise<HookResponse<null>> {
+		return SessionManager.updateSession("idle");
 	}
 }
 
