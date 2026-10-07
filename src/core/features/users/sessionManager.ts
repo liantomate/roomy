@@ -1,3 +1,4 @@
+import RealTimeService from "../../../api/services/realtimeService";
 import sessionService from "../../../api/services/sessionService";
 import userService from "../../../api/services/userService";
 import type { ActiveSession, Session } from "../../../types/database.types";
@@ -6,6 +7,8 @@ import {
 	successResponse,
 	type HookResponse,
 } from "../../../types/responseTypes";
+
+type ActiveSessionListener = (payload: ActiveSession) => void;
 
 /**
  * Handles session fetching with sessionService. As of the moment, it mostly serves as an {@linkcode APIResponse} to
@@ -82,6 +85,58 @@ class SessionManager {
 			);
 
 		return this.getSessionHistoryById(userResponse.additional.userId);
+	}
+
+	/**
+	 * Registers and subscribes to the ActiveSession channel, calling the provided functions
+	 * on change updates
+	 *
+	 * @param onCreate called when INSERT updates occur
+	 * @param onUpdate called when UPDATE updates occur
+	 * @param onDelete called when DELETE updates occur
+	 * @returns hook response {@linkcode HookResponse}
+	 * @error REALTIME_SUBSCRIPTION_ERROR if an error occured during subscription
+	 */
+	public static subscribeToActiveSessionRealtime(
+		onCreate: ActiveSessionListener,
+		onUpdate: ActiveSessionListener,
+		onDelete: ActiveSessionListener,
+	): HookResponse<null> {
+		const registerResponse = RealTimeService.registerChannel(
+			"ActiveSession",
+			onCreate,
+			onUpdate,
+			onDelete,
+		);
+		if (!registerResponse) return successResponse(null);
+
+		const subResponse = RealTimeService.startChannel("ActiveSession");
+		if (!subResponse.isSuccessful)
+			return errorResponse(
+				"REALTIME_SUBSCRIPTION_ERROR",
+				subResponse.error,
+			);
+
+		return successResponse(null);
+	}
+
+	/**
+	 * Unsubscribes from the ActiveSession table
+	 *
+	 * @returns hook response {@linkcode HookResponse}
+	 * @error REALTIME_SUBSCRIPTION_ERROR if an error occured during unsubscription
+	 */
+	public static async unsubscribeToActiveSessionRealtime(): Promise<
+		HookResponse<null>
+	> {
+		const response = await RealTimeService.stopChannel("ActiveSession");
+		if (!response.isSuccessful)
+			return errorResponse(
+				"REALTIME_UNSUBSCRIPTION_ERROR",
+				response.error,
+			);
+
+		return successResponse(null);
 	}
 }
 

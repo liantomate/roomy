@@ -21,6 +21,9 @@ export type ResponseErrorCode =
 	// ===== useTimer Errors ===== //
 	| "TIMER_INVALID_STATE"
 	| "TIMER_START_FAILED"
+	// ===== Realtime Errors ====== //
+	| "REALTIME_SUBSCRIPTION_ERROR"
+	| "REALTIME_UNSUBSCRIPTION_ERROR"
 	// ===== General Errors ====== //
 	| "GENERAL_AUTH_NO_USER_FOUND"
 	| "GENERAL_QUERY_ERROR"
