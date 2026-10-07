@@ -34,6 +34,22 @@ class SessionManager {
 	}
 
 	/**
+	 * Fetches all active sessions
+	 *
+	 * @returns hook response {@linkcode HookResponse} with array data of {@linkcode ActiveSession}
+	 * @error GENERAL_QUERY_ERROR if the active sessions cannot be fetched
+	 */
+	public static async getAllActiveSessions(): Promise<
+		HookResponse<ActiveSession[]>
+	> {
+		const response = await sessionService.getAllActiveSessions();
+		if (!response.isSuccessful)
+			return errorResponse("GENERAL_QUERY_ERROR", response.error);
+
+		return successResponse(response.additional);
+	}
+
+	/**
 	 * Fetches the active session of the authenticated user
 	 *
 	 * @returns hook response {@linkcode HookResponse} with data {@linkcode ActiveSession}

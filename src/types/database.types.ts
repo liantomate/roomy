@@ -1,4 +1,4 @@
-import type { TimerStatus } from "./timerTypes";
+import type { TimerModes, TimerStatus } from "./timerTypes";
 
 export type TableNames = {
 	PublicAccount: "users";
@@ -27,6 +27,9 @@ export type ActiveSession = {
 	duration: number;
 	lastTick: Date;
 	lastTime: number;
+	timerMode: TimerModes;
+	sessionDetails: string;
+	timeCap: number;
 };
 
 export type Session = {
