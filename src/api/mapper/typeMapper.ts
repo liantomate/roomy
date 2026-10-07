@@ -9,7 +9,7 @@ import type {
 	PublicAccount,
 	Session,
 } from "../../types/database.types";
-import type { TimerStatus } from "../../types/timerTypes";
+import type { TimerModes, TimerStatus } from "../../types/timerTypes";
 
 // ===== Response Types ===== //
 
@@ -33,6 +33,9 @@ export type ActiveSessionResponse = {
 	duration: string;
 	last_tick: string;
 	last_time: string;
+	timer_mode: string;
+	session_details: string;
+	time_cap: string;
 };
 
 export type SessionResponse = {
@@ -60,6 +63,23 @@ function mapStringToTimerStatus(
 	if (loweredStatus === "idle") return "idle";
 	if (loweredStatus === "running") return "running";
 	if (loweredStatus === "paused") return "paused";
+	return fallback;
+}
+
+/**
+ * Converts a string to a TimerModes, returning a fallback value if none matches
+ *
+ * @param mode string to convert
+ * @param fallback TimerModes value if modes does not match any existing TimerModes value
+ * @returns equivalent {@linkcode TimerModes}
+ */
+function mapStringToTimerModes(
+	mode: string,
+	fallback: TimerModes = "counter",
+): TimerModes {
+	const loweredMode = mode.toLowerCase();
+	if (loweredMode === "timer") return "timer";
+	if (loweredMode === "counter") return "counter";
 	return fallback;
 }
 
@@ -114,6 +134,9 @@ export const mapActiveSession = (
 		duration: Number(rawData.duration),
 		lastTick: new Date(rawData.last_tick),
 		lastTime: Number(rawData.last_time),
+		timerMode: mapStringToTimerModes(rawData.timer_mode),
+		sessionDetails: rawData.session_details,
+		timeCap: Number(rawData.time_cap),
 	};
 };
 
