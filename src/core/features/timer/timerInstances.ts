@@ -16,7 +16,7 @@ export class ReadOnlyTimer {
 	 * @returns elapsed time since the timer started in string format (MM:SS) with respect to the timer mode
 	 */
 	public getTime(): string {
-		return formatTimeMMSS(this.timer.getTimeSec());
+		return formatTimeMMSS(this.timer.getDisplayTimeSec());
 	}
 
 	/**

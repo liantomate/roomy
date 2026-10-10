@@ -31,7 +31,7 @@ function createTimerFromSession(sessionData: ActiveSession): TimerEngine {
 
 		timeStart: new Date(sessionData.lastTick).getTime() / 1000,
 		lastTick: new Date(sessionData.lastTick).getTime() / 1000,
-		timeElapsed: sessionData.duration,
+		timeElapsed: sessionData.lastTime,
 	});
 }
 
