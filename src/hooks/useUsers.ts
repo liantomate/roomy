@@ -12,6 +12,12 @@ type UserData = {
 	users: ReadOnlyUser[] | undefined;
 };
 
+/**
+ * Returns user-related actions and data
+ *
+ * @returns hooks operations {@linkcode HookOperation} for:  init, fetchCurrentUserSession,
+ * fetchUserSessionById, fetchCurrentUserHistory, fetchUserHistoryById,
+ */
 function useUsers() {
 	const [initError, setInitError] = useState<HookResponseError>();
 	const [sessionError, setSessionError] = useState<HookResponseError>();
