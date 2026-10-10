@@ -1,3 +1,4 @@
+import { mapActiveSession } from "../../../api/mapper/typeMapper";
 import RealTimeService from "../../../api/services/realtimeService";
 import sessionService from "../../../api/services/sessionService";
 import userService from "../../../api/services/userService";
@@ -125,6 +126,7 @@ class SessionManager {
 			onCreate,
 			onUpdate,
 			onDelete,
+			mapActiveSession,
 		);
 		if (!registerResponse) return successResponse(null);
 

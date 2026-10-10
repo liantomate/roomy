@@ -16,6 +16,7 @@ class Channel<T> {
 	private readonly onCreateFunc?: ChannelListener<T>;
 	private readonly onUpdateFunc?: ChannelListener<T>;
 	private readonly onDeleteFunc?: ChannelListener<T>;
+	private readonly mapper?: (payload: any) => T;
 
 	private channel?: RealtimeChannel;
 
@@ -28,10 +29,12 @@ class Channel<T> {
 		onCreate?: ChannelListener<T>,
 		onUpdate?: ChannelListener<T>,
 		onDelete?: ChannelListener<T>,
+		mapper?: (payload: any) => T,
 	) {
 		this.onCreateFunc = onCreate;
 		this.onUpdateFunc = onUpdate;
 		this.onDeleteFunc = onDelete;
+		this.mapper = mapper;
 	}
 
 	/**
@@ -58,8 +61,12 @@ class Channel<T> {
 						schema: "public",
 						table: channelName,
 					},
-					(payload: unknown) => {
-						onCreate(payload as T);
+					(payload) => {
+						onCreate(
+							this.mapper
+								? this.mapper(payload.new)
+								: (payload as T),
+						);
 					},
 				);
 
@@ -71,8 +78,12 @@ class Channel<T> {
 						schema: "public",
 						table: channelName,
 					},
-					(payload: unknown) => {
-						onUpdate(payload as T);
+					(payload) => {
+						onUpdate(
+							this.mapper
+								? this.mapper(payload.new)
+								: (payload as T),
+						);
 					},
 				);
 
@@ -84,8 +95,12 @@ class Channel<T> {
 						schema: "public",
 						table: channelName,
 					},
-					(payload: unknown) => {
-						onDelete(payload as T);
+					(payload) => {
+						onDelete(
+							this.mapper
+								? this.mapper(payload.old)
+								: (payload as T),
+						);
 					},
 				);
 
@@ -142,6 +157,7 @@ class RealTimeService {
 		onCreate?: ChannelListener<T>,
 		onUpdate?: ChannelListener<T>,
 		onDelete?: ChannelListener<T>,
+		mapper?: (payload: any) => T,
 	): APIResponse<null> {
 		if (channelName in RealTimeService.channels)
 			return createAPIErrorResponse(
@@ -152,6 +168,7 @@ class RealTimeService {
 			onCreate,
 			onUpdate,
 			onDelete,
+			mapper,
 		);
 
 		return createAPISuccessResponse(

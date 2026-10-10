@@ -59,7 +59,7 @@ function mapStringToTimerStatus(
 	status: string,
 	fallback: TimerStatus = "idle",
 ): TimerStatus {
-	const loweredStatus = status.toLowerCase();
+	const loweredStatus = status?.toLowerCase() ?? "";
 	if (loweredStatus === "idle") return "idle";
 	if (loweredStatus === "running") return "running";
 	if (loweredStatus === "paused") return "paused";
@@ -77,7 +77,7 @@ function mapStringToTimerModes(
 	mode: string,
 	fallback: TimerModes = "counter",
 ): TimerModes {
-	const loweredMode = mode.toLowerCase();
+	const loweredMode = mode?.toLowerCase() ?? "";
 	if (loweredMode === "timer") return "timer";
 	if (loweredMode === "counter") return "counter";
 	return fallback;
@@ -92,7 +92,7 @@ function mapStringToTimerModes(
  * @returns mapped data {@linkcode PublicAccount}
  */
 export const mapPublicAccount = (
-	rawData: PublicAccountResponse,
+	rawData: PublicAccountResponse | any,
 ): PublicAccount => {
 	return {
 		userId: rawData.user_id,
@@ -108,7 +108,7 @@ export const mapPublicAccount = (
  * @returns mapped data {@linkcode AccountStats}
  */
 export const mapAccountStats = (
-	rawData: AccountStatsResponse,
+	rawData: AccountStatsResponse | any,
 ): AccountStats => {
 	return {
 		userId: rawData.user_id,
@@ -125,7 +125,7 @@ export const mapAccountStats = (
  * @returns mapped data {@linkcode ActiveSession}
  */
 export const mapActiveSession = (
-	rawData: ActiveSessionResponse,
+	rawData: ActiveSessionResponse | any,
 ): ActiveSession => {
 	return {
 		sessionOwner: rawData.session_owner,
@@ -146,7 +146,7 @@ export const mapActiveSession = (
  * @param rawData valid session response / {@linkcode SessionResponse}
  * @returns mapped data {@linkcode Session}
  */
-export const mapSession = (rawData: SessionResponse): Session => {
+export const mapSession = (rawData: SessionResponse | any): Session => {
 	return {
 		sessionId: rawData.session_id,
 		sessionOwner: rawData.session_owner,
