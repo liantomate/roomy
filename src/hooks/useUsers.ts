@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { ReadOnlyUser, User } from "../core/features/users/user";
+import type { ReadOnlyUser } from "../core/features/users/user";
 import type { ActiveSession, Session } from "../types/database.types";
 import userApp from "../apps/userApp";
 import {
@@ -21,26 +21,42 @@ function useUsers() {
 	const [isFetchingSession, setFetchingSession] = useState(false);
 	const [isFetchingHistory, setFetchingHistory] = useState(false);
 
+	const [fetchedUsers, setFetchedUsers] = useState<ReadOnlyUser[]>();
 	const [fetchedUserSession, setFetchedUserSession] =
 		useState<ActiveSession>();
 	const [fetchedUserHistory, setFetchedUserHistory] = useState<Session[]>();
 
 	useEffect(() => {
-		const initUserApp = async () => {
+		const initUser = async () => {
 			setUserInit(true);
+			setFetchedUsers(undefined);
 			setInitError(undefined);
 
+			let users: ReadOnlyUser[] = [];
 			try {
-				const response = await userApp.init();
+				const response = await userApp.getCurrentUser();
 				if (response.error) {
 					setInitError(response.error);
 					return;
 				}
+
+				users.push(response.data!.getReadOnlyUser());
+
+				const fetchAllResponse = await userApp.getAllUsers();
+				if (fetchAllResponse.error) {
+					setInitError(fetchAllResponse.error);
+					return;
+				}
+
+				fetchAllResponse.data!.map((user) =>
+					users.push(user.getReadOnlyUser()),
+				);
 			} finally {
 				setUserInit(false);
 			}
 		};
-		initUserApp();
+
+		initUser();
 	}, []);
 
 	async function fetchUserSessionById(id: string) {
@@ -55,16 +71,13 @@ function useUsers() {
 		setSessionError(undefined);
 
 		try {
-			const user = userApp.getUserById(id);
-			if (!user) {
-				setSessionError({
-					code: "GENERAL_QUERY_ERROR",
-					message: `User of ID: ${id} not found`,
-				});
+			const user = await userApp.getUserById(id);
+			if (user.error) {
+				setSessionError(user.error);
 				return;
 			}
 
-			const response = await user.getActiveSession();
+			const response = await user.data!.getActiveSession();
 			if (response.error) {
 				setSessionError(response.error);
 				return;
@@ -88,16 +101,13 @@ function useUsers() {
 		setHistoryError(undefined);
 
 		try {
-			const user = userApp.getUserById(id);
-			if (!user) {
-				setHistoryError({
-					code: "GENERAL_QUERY_ERROR",
-					message: `User of ID: ${id} not found`,
-				});
+			const user = await userApp.getUserById(id);
+			if (user.error) {
+				setHistoryError(user.error);
 				return;
 			}
 
-			const response = await user.getHistory();
+			const response = await user.data!.getHistory();
 			if (response.error) {
 				setHistoryError(response.error);
 				return;
@@ -109,10 +119,11 @@ function useUsers() {
 		}
 	}
 
-	const user: User | null | undefined = userApp.getCurrentUser();
+	const hasFetchedUsers = fetchedUsers && fetchedUsers.length > 0;
+	const currentUser = hasFetchedUsers ? fetchedUsers[0] : undefined;
 	const userData: UserData = {
-		currentUser: user?.getReadOnlyUser() ?? undefined,
-		users: userApp.getAllReadOnlyUsers() ?? undefined,
+		currentUser: currentUser,
+		users: hasFetchedUsers ? fetchedUsers.slice(1) : undefined,
 	};
 
 	return {
@@ -128,7 +139,9 @@ function useUsers() {
 			[]
 		>(
 			async () => {
-				await fetchUserSessionById(user?.id ?? "unauthenticated_user");
+				await fetchUserSessionById(
+					currentUser?.id ?? "unauthenticated_user",
+				);
 			},
 			isFetchingSession,
 			sessionError,
@@ -149,7 +162,9 @@ function useUsers() {
 
 		fetchCurrentUserHistory: createHookOperation<Session[] | undefined, []>(
 			async () => {
-				await fetchUserHistoryById(user?.id ?? "unauthenticated_user");
+				await fetchUserHistoryById(
+					currentUser?.id ?? "unauthenticated_user",
+				);
 			},
 			isFetchingHistory,
 			historyError,

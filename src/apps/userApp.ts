@@ -1,6 +1,4 @@
-import AuthManager from "../core/features/auth/authManager";
 import { ReadOnlyUser, type User } from "../core/features/users/user";
-import userManager from "../core/features/users/userManager";
 import UserManager from "../core/features/users/userManager";
 import {
 	errorResponse,
@@ -8,73 +6,95 @@ import {
 	type HookResponse,
 } from "../types/responseTypes";
 
+/**
+ * Handles user-related fetching. For the meantime, this class only forwards {@linkcode UserManager}
+ * functions to the hook layer
+ */
 class UserApp {
 	private static instance: UserApp | null = null;
 
-	private isReady: Promise<HookResponse<null>>;
-
-	private constructor() {
-		this.isReady = this.init();
-	}
+	private constructor() {}
 
 	public static getInstance(): UserApp {
 		return (UserApp.instance ??= new UserApp());
 	}
 
-	public async ready(): Promise<HookResponse<null>> {
-		return this.isReady;
+	/**
+	 * Fetches the authenticated user
+	 *
+	 * @returns hook response {@linkcode HookResponse} with data {@linkcode User}
+	 * @error errors returnable by {@linkcode UserManager.getCurrentUser}
+	 */
+	public async getCurrentUser(): Promise<HookResponse<User>> {
+		const response = await UserManager.getCurrentUser();
+		if (response.error) return response;
+		return successResponse(response.data);
 	}
 
-	public async init(): Promise<HookResponse<null>> {
-		// Check auth first
-		const authResponse = await AuthManager.isAuthenticated();
-		if (authResponse.error)
+	/**
+	 * Fetches user with the given id
+	 *
+	 * @param id id of the target user
+	 * @returns hook response {@linkcode HookResponse} with data {@linkcode User}
+	 * @error errors returnable by {@linkcode UserManager.getUserById}
+	 */
+	public async getUserById(id: string): Promise<HookResponse<User>> {
+		const response = await UserManager.getUserById(id);
+		if (response.error) return response;
+		return successResponse(response.data);
+	}
+
+	/**
+	 * Fetches user with the given id as {@linkcode ReadOnlyUser}
+	 *
+	 * @param id id of the target user
+	 * @returns hook response {@linkcode HookResponse} with data {@linkcode ReadOnlyUser}
+	 * @error GENERAL_FATAL_ERROR if no user data is returned from fetch
+	 * @error errors returnable by {@linkcode UserManager.getUserById}
+	 */
+	public async getReadOnlyUserById(
+		id: string,
+	): Promise<HookResponse<ReadOnlyUser>> {
+		const response = await this.getUserById(id);
+		if (response.error) return response;
+		if (!response.data)
 			return errorResponse(
-				authResponse.error.code,
-				authResponse.error.message,
+				"GENERAL_FATAL_ERROR",
+				"Fetched user returned no data",
 			);
-
-		// Check if users can be fetched
-		const fetchResponse = await UserManager.fetchUsers();
-		if (fetchResponse.error)
-			if (fetchResponse.error.code === "GENERAL_INIT_ERROR")
-				console.error(fetchResponse.error);
-			else return fetchResponse;
-
-		// Set proper ID
-		UserManager.checkAndSetUserId(authResponse.data!);
-
-		return successResponse(null);
+		return successResponse(response.data.getReadOnlyUser());
 	}
 
-	public getCurrentUser(): User | null {
-		return null; // TODO: temporary fix
+	/**
+	 * Fetches all users
+	 *
+	 * @returns hook response {@linkcode HookResponse} with array data of {@linkcode User}
+	 * @error errors returnable by {@linkcode UserManager.getAllUsers}
+	 */
+	public async getAllUsers(): Promise<HookResponse<User[]>> {
+		const response = await UserManager.getAllUsers();
+		if (response.error) return response;
+		return successResponse(response.data);
 	}
 
-	public getUserById(id: string): User | null {
-		const users = UserManager.getAllUsers();
-		if (!users) return null;
-
-		for (const user of users) if (user.id === id) return user;
-		return null;
-	}
-
-	public getReadOnlyUserById(id: string): ReadOnlyUser | undefined {
-		const user = this.getUserById(id);
-		return user ?? undefined;
-	}
-
-	public getAllUsers(): User[] | undefined {
-		return userManager.getAllUsers();
-	}
-
-	public getAllReadOnlyUsers(): ReadOnlyUser[] | undefined {
-		const readOnlyUsers: ReadOnlyUser[] = [];
-		const users = UserManager.getAllUsers();
-		if (!users) return undefined;
-
-		for (const user of users) readOnlyUsers.push(user.getReadOnlyUser());
-		return readOnlyUsers;
+	/**
+	 * Fetches all users as an array of {@linkcode ReadOnlyUser}
+	 *
+	 * @returns hook response {@linkcode HookResponse} with array data of {@linkcode ReadOnlyUser}
+	 * @error GENERAL_FATAL_ERROR if no user data is returned from fetch
+	 * @error errors returnable by {@linkcode UserManager.getAllUsers}
+	 */
+	public async getAllReadOnlyUsers(): Promise<HookResponse<ReadOnlyUser[]>> {
+		const response = await this.getAllUsers();
+		if (response.error) return response;
+		if (!response.data)
+			return errorResponse(
+				"GENERAL_FATAL_ERROR",
+				"Fetched user returned no data",
+			);
+		return successResponse(
+			response.data.map((user) => user.getReadOnlyUser()),
+		);
 	}
 }
 
