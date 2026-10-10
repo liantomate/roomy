@@ -11,6 +11,12 @@ type TimerData = {
 	elapsedTime: string;
 };
 
+/**
+ * Returns timer-related actions and data
+ *
+ * @param updateTime rough per millisecond update for rerenders
+ * @returns hooks operations {@linkcode HookOperation} for: init, startTimer, startCounter, reset, setPause
+ */
 function useTimer(updateTime: number = 1000) {
 	const [initError, setInitError] = useState<HookResponseError>();
 	const [startError, setStartError] = useState<HookResponseError>();
@@ -49,7 +55,11 @@ function useTimer(updateTime: number = 1000) {
 		return () => clearInterval(interval);
 	}, []);
 
-	async function start(mode: TimerModes, duration: number = 86400) {
+	async function start(
+		mode: TimerModes,
+		duration: number = 86400,
+		sesisonDetail: string = "New Session...",
+	) {
 		if (isTimerStarting) return;
 		setTimerStarting(true);
 		setStartError(undefined);
@@ -57,7 +67,7 @@ function useTimer(updateTime: number = 1000) {
 		try {
 			const response = await timerApp.start(
 				mode,
-				"New Session...",
+				sesisonDetail,
 				duration,
 			);
 			if (response.error) setStartError(response.error);
