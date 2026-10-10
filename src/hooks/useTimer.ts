@@ -5,17 +5,19 @@ import {
 	type HookResponseError,
 } from "../types/responseTypes";
 import type { TimerModes, TimerStatus } from "../types/timerTypes";
-import userApp from "../apps/userApp";
-import { type User } from "../core/features/users/user";
 
 type TimerData = {
 	status: TimerStatus;
 	elapsedTime: string;
 };
 
+/**
+ * Returns timer-related actions and data
+ *
+ * @param updateTime rough per millisecond update for rerenders
+ * @returns hooks operations {@linkcode HookOperation} for: init, startTimer, startCounter, reset, setPause
+ */
 function useTimer(updateTime: number = 1000) {
-	const [user, setUser] = useState<User>();
-
 	const [initError, setInitError] = useState<HookResponseError>();
 	const [startError, setStartError] = useState<HookResponseError>();
 	const [resetError, setResetError] = useState<HookResponseError>();
@@ -29,29 +31,30 @@ function useTimer(updateTime: number = 1000) {
 	const [, triggerRerender] = useState(0);
 
 	useEffect(() => {
+		let cancelled = false;
+		let unsubscribe: () => Promise<any> | undefined;
+
 		const initTimer = async () => {
 			setTimerInit(true);
 			setInitError(undefined);
 			try {
-				const initResponse = await timerApp.init();
-				const user = userApp.getCurrentUser();
+				const initResponse = await timerApp.loadTimers();
 
 				if (initResponse.error) {
 					setInitError(initResponse.error);
 					return;
 				}
 
-				if (!user) {
-					setInitError({
-						code: "GENERAL_INIT_ERROR",
-						message: "No active user found",
-					});
+				const subResponse = timerApp.subscribeToSessions();
+				if (subResponse.error) {
+					setInitError(subResponse.error);
 					return;
 				}
 
-				setUser(user);
+				if (cancelled) await timerApp.unsubscribeToSessions();
+				else unsubscribe = () => timerApp.unsubscribeToSessions();
 			} finally {
-				setTimerInit(false);
+				if (!cancelled) setTimerInit(false);
 			}
 		};
 		initTimer();
@@ -61,16 +64,28 @@ function useTimer(updateTime: number = 1000) {
 			triggerRerender((x) => x + 1);
 		}, updateTime);
 
-		return () => clearInterval(interval);
+		return () => {
+			cancelled = true;
+			clearInterval(interval);
+			if (unsubscribe) void unsubscribe();
+		};
 	}, []);
 
-	async function start(mode: TimerModes, duration: number = 86400) {
+	async function start(
+		mode: TimerModes,
+		duration: number = 86400,
+		sesisonDetail: string = "New Session...",
+	) {
 		if (isTimerStarting) return;
 		setTimerStarting(true);
 		setStartError(undefined);
 
 		try {
-			const response = await timerApp.start(mode, duration);
+			const response = await timerApp.start(
+				mode,
+				sesisonDetail,
+				duration,
+			);
 			if (response.error) setStartError(response.error);
 		} finally {
 			setTimerStarting(false);
@@ -105,7 +120,7 @@ function useTimer(updateTime: number = 1000) {
 		}
 	}
 
-	const timer = timerApp.getTimerByID(user?.id ?? "");
+	const timer = timerApp.getUserTimer();
 	const timerData: TimerData = {
 		status: timer?.getStatus() ?? "idle",
 		elapsedTime: timer?.getTime() ?? "00:00",

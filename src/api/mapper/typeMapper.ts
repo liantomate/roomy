@@ -9,7 +9,7 @@ import type {
 	PublicAccount,
 	Session,
 } from "../../types/database.types";
-import type { TimerStatus } from "../../types/timerTypes";
+import type { TimerModes, TimerStatus } from "../../types/timerTypes";
 
 // ===== Response Types ===== //
 
@@ -33,6 +33,9 @@ export type ActiveSessionResponse = {
 	duration: string;
 	last_tick: string;
 	last_time: string;
+	timer_mode: string;
+	session_details: string;
+	time_cap: string;
 };
 
 export type SessionResponse = {
@@ -56,10 +59,27 @@ function mapStringToTimerStatus(
 	status: string,
 	fallback: TimerStatus = "idle",
 ): TimerStatus {
-	const loweredStatus = status.toLowerCase();
+	const loweredStatus = status?.toLowerCase() ?? "";
 	if (loweredStatus === "idle") return "idle";
 	if (loweredStatus === "running") return "running";
 	if (loweredStatus === "paused") return "paused";
+	return fallback;
+}
+
+/**
+ * Converts a string to a TimerModes, returning a fallback value if none matches
+ *
+ * @param mode string to convert
+ * @param fallback TimerModes value if modes does not match any existing TimerModes value
+ * @returns equivalent {@linkcode TimerModes}
+ */
+function mapStringToTimerModes(
+	mode: string,
+	fallback: TimerModes = "counter",
+): TimerModes {
+	const loweredMode = mode?.toLowerCase() ?? "";
+	if (loweredMode === "timer") return "timer";
+	if (loweredMode === "counter") return "counter";
 	return fallback;
 }
 
@@ -72,7 +92,7 @@ function mapStringToTimerStatus(
  * @returns mapped data {@linkcode PublicAccount}
  */
 export const mapPublicAccount = (
-	rawData: PublicAccountResponse,
+	rawData: PublicAccountResponse | any,
 ): PublicAccount => {
 	return {
 		userId: rawData.user_id,
@@ -88,7 +108,7 @@ export const mapPublicAccount = (
  * @returns mapped data {@linkcode AccountStats}
  */
 export const mapAccountStats = (
-	rawData: AccountStatsResponse,
+	rawData: AccountStatsResponse | any,
 ): AccountStats => {
 	return {
 		userId: rawData.user_id,
@@ -105,7 +125,7 @@ export const mapAccountStats = (
  * @returns mapped data {@linkcode ActiveSession}
  */
 export const mapActiveSession = (
-	rawData: ActiveSessionResponse,
+	rawData: ActiveSessionResponse | any,
 ): ActiveSession => {
 	return {
 		sessionOwner: rawData.session_owner,
@@ -114,6 +134,9 @@ export const mapActiveSession = (
 		duration: Number(rawData.duration),
 		lastTick: new Date(rawData.last_tick),
 		lastTime: Number(rawData.last_time),
+		timerMode: mapStringToTimerModes(rawData.timer_mode),
+		sessionDetails: rawData.session_details,
+		timeCap: Number(rawData.time_cap),
 	};
 };
 
@@ -123,7 +146,7 @@ export const mapActiveSession = (
  * @param rawData valid session response / {@linkcode SessionResponse}
  * @returns mapped data {@linkcode Session}
  */
-export const mapSession = (rawData: SessionResponse): Session => {
+export const mapSession = (rawData: SessionResponse | any): Session => {
 	return {
 		sessionId: rawData.session_id,
 		sessionOwner: rawData.session_owner,

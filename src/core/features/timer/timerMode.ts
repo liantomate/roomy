@@ -1,3 +1,5 @@
+import type { TimerModes } from "../../../types/timerTypes";
+
 /**
  * Handles how the elapsed time of a TimerEngine will be displayed (direction-wise)
  */
@@ -24,6 +26,13 @@ export interface TimerMode {
 	 * @returns clamped mode-modified elapsed time
 	 */
 	getTimeValueCapped(elapsedTime: number): number;
+
+	/**
+	 * Returns the {@linkcode TimerModes} equivalent of this timer
+	 *
+	 * @returns timer modes equivalent
+	 */
+	getAsTimeMode(): TimerModes;
 }
 
 /**
@@ -47,6 +56,10 @@ export class ModeTimer implements TimerMode {
 	isCompleted(deltaTime: number): boolean {
 		return deltaTime <= 0;
 	}
+
+	getAsTimeMode(): TimerModes {
+		return "timer";
+	}
 }
 
 /**
@@ -69,5 +82,9 @@ export class ModeCounter implements TimerMode {
 
 	isCompleted(deltaTime: number): boolean {
 		return deltaTime >= this.timeCap;
+	}
+
+	getAsTimeMode(): TimerModes {
+		return "counter";
 	}
 }

@@ -11,6 +11,10 @@ type AuthSnapshot = {
 	initError: HookResponseError | undefined;
 };
 
+/**
+ * Handles authentication snapshot {@linkcode AuthSnapshot} management, allowing multi-instance
+ * communication among useAuth usages
+ */
 class AuthStore {
 	private snapshot: AuthSnapshot = {
 		isAuthenticated: false,
@@ -20,6 +24,12 @@ class AuthStore {
 
 	private listeners = new Set<() => void>();
 
+	/**
+	 * Sets snapshot data and updates listeners
+	 *
+	 * @param isAuthenticated true if user has been authenticated, false otherwise
+	 * @param error returned error from auth operation
+	 */
 	public setInitialized(isAuthenticated: boolean, error?: HookResponseError) {
 		this.snapshot = {
 			...this.snapshot,
@@ -30,18 +40,29 @@ class AuthStore {
 		this.listeners.forEach((callback) => callback());
 	}
 
+	/**
+	 * Sets whether or not user is authenticated and updates listeners. This is a more
+	 * specific version of {@linkcode AuthStore.setInitialized}
+	 *
+	 * @param isAuthenticated true if user has been authenticated, false otherwise
+	 */
 	public setAuthenticated(isAuthenticated: boolean) {
-		this.snapshot = {
-			...this.snapshot,
-			isAuthenticated,
-		};
-		this.listeners.forEach((callback) => callback());
+		this.setInitialized(isAuthenticated, undefined);
 	}
 
+	/**
+	 * @returns authentication data {@linkcode AuthSnapshot} at the instance
+	 */
 	public getSnapshot = (): AuthSnapshot => {
 		return this.snapshot;
 	};
 
+	/**
+	 * Adds subscribers for auth data changes
+	 *
+	 * @param callback change listeners
+	 * @returns unsubscription function
+	 */
 	public subscribe = (callback: () => void): (() => void) => {
 		this.listeners.add(callback);
 		return () => {
@@ -51,8 +72,13 @@ class AuthStore {
 }
 
 const authStore = new AuthStore();
-
 let initialization: Promise<void> | undefined;
+
+/**
+ * Initializes auth by checking if a user is authenticated and only does so once by design
+ *
+ * @returns void promise
+ */
 async function initializeAuth(): Promise<void | undefined> {
 	if (initialization) return initialization;
 
@@ -75,6 +101,11 @@ async function initializeAuth(): Promise<void | undefined> {
 	return initialization;
 }
 
+/**
+ * Returns authentication-related actions and data
+ *
+ * @returns hooks operations {@linkcode HookOperation} for: init, signup, login, logout
+ */
 export function useAuth() {
 	const authSnapshot = useSyncExternalStore(
 		authStore.subscribe,

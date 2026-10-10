@@ -1,121 +1,14 @@
-import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
 	createAPIErrorResponse,
 	createAPISuccessResponse,
 	type APIResponse,
 } from "../../types/api.types";
 import type { ActiveSession, Session } from "../../types/database.types";
-import type { TimerStatus } from "../../types/timerTypes";
-import {
-	mapActiveSession,
-	mapSession,
-	type ActiveSessionResponse,
-} from "../mapper/typeMapper";
+import type { TimerModes, TimerStatus } from "../../types/timerTypes";
+import { mapActiveSession, mapSession } from "../mapper/typeMapper";
 import supabase from "../transport/client";
 
-/**
- * Handles realtime channel on active sessions of users
- */
-class SessionChannel {
-	private channel?: RealtimeChannel;
-
-	/**
-	 * Subscribes the provided functions to a realtime active_session channel
-	 *
-	 * @param onInsert called when an active_session row is inserted
-	 * @param onUpdate called when an active_session row is updated
-	 * @param onDelete called when an active_session row is deleted
-	 */
-	public start(
-		onInsert: (session: ActiveSession) => void,
-		onUpdate: (session: ActiveSession) => void,
-		onDelete: (session: ActiveSession) => void,
-	) {
-		if (this.channel) return;
-
-		this.channel = supabase
-			.channel("active_session")
-			.on(
-				"postgres_changes",
-				{
-					event: "INSERT",
-					schema: "public",
-					table: "active_session",
-				},
-				(payload: unknown) => {
-					onInsert(
-						mapActiveSession(payload as ActiveSessionResponse),
-					);
-				},
-			)
-			.on(
-				"postgres_changes",
-				{
-					event: "UPDATE",
-					schema: "public",
-					table: "active_session",
-				},
-				(payload: unknown) => {
-					onUpdate(
-						mapActiveSession(payload as ActiveSessionResponse),
-					);
-				},
-			)
-			.on(
-				"postgres_changes",
-				{
-					event: "DELETE",
-					schema: "public",
-					table: "active_session",
-				},
-				(payload: unknown) => {
-					onDelete(
-						mapActiveSession(payload as ActiveSessionResponse),
-					);
-				},
-			);
-
-		this.channel.subscribe((status, error) => {
-			switch (status) {
-				case "SUBSCRIBED":
-					console.log(
-						"Successfully subscribed to active_session channel",
-					);
-					break;
-				case "CHANNEL_ERROR":
-					console.error(
-						error?.message ??
-							"A channel error occured while setting up realtime",
-					);
-					break;
-				case "TIMED_OUT":
-					console.error(
-						error?.message ??
-							"Connection timed out while setting up realtime",
-					);
-					break;
-				default:
-					console.error(error?.message ?? "An unknown error occured");
-					break;
-			}
-		});
-	}
-
-	/**
-	 * Stops realtime connection to the active_session channel
-	 */
-	public async stop() {
-		if (!this.channel) return;
-
-		await supabase.removeChannel(this.channel);
-		this.channel = undefined;
-	}
-}
-
-/**
- * Single instance of {@linkcode SessionChannel} for all {@linkcode sessionService} calls
- */
-const sessionChannel: SessionChannel = new SessionChannel();
+const DEFAULT_SESSION_DETAILS = "New Session";
 
 /**
  * Handles all session-related (active sessions and session history) functions
@@ -129,7 +22,11 @@ const sessionService = {
 	 * @error QUERY_ERROR if an error occurs while creating the session
 	 * @error GENERAL_ERROR for unexpected errors
 	 */
-	async createSession(): Promise<APIResponse<null>> {
+	async createSession(
+		timerMode: TimerModes,
+		timeCap: number,
+		sessionDetails: string,
+	): Promise<APIResponse<null>> {
 		try {
 			const {
 				data: { user },
@@ -148,6 +45,9 @@ const sessionService = {
 				.insert({
 					session_owner: user.id,
 					status: "running",
+					timer_mode: timerMode,
+					session_details: sessionDetails,
+					time_cap: timeCap,
 				})
 				.select()
 				.maybeSingle();
@@ -216,6 +116,44 @@ const sessionService = {
 	},
 
 	/**
+	 * Returns all active sessions in the database
+	 *
+	 * @returns api response {@linkcode APIResponse} with array data of {@linkcode ActiveSession}
+	 * @error QUERY_ERROR if unable to get active sessions
+	 * @error GENERAL_ERROR for unexpected errors
+	 */
+	async getAllActiveSessions(): Promise<APIResponse<ActiveSession[]>> {
+		try {
+			const { data, error } = await supabase
+				.from("active_sessions")
+				.select("*");
+
+			if (error)
+				return createAPIErrorResponse(
+					error,
+					"Failed to get active sessions",
+					"QUERY_ERROR",
+				);
+
+			if (!data)
+				return createAPISuccessResponse(
+					"Successful query, no active session found",
+					[],
+				);
+
+			return createAPISuccessResponse(
+				"Successfully taken active session of all users",
+				data.map((sessions) => mapActiveSession(sessions)),
+			);
+		} catch (err: unknown) {
+			return createAPIErrorResponse(
+				err,
+				"An error occured while getting active sessions",
+			);
+		}
+	},
+
+	/**
 	 * Updates the status of the active session of authenticated user to the given status
 	 *
 	 * @param status timer status / {@linkcode TimerStatus}
@@ -225,7 +163,10 @@ const sessionService = {
 	 * @error QUERY_ERROR if an error occured while updating the active session
 	 * @error GENERAL_ERROR for unexpected errors
 	 */
-	async updateSession(status: TimerStatus): Promise<APIResponse<null>> {
+	async updateSession(
+		status: TimerStatus,
+		details: string = DEFAULT_SESSION_DETAILS,
+	): Promise<APIResponse<null>> {
 		try {
 			const {
 				data: { user },
@@ -243,6 +184,7 @@ const sessionService = {
 				.rpc("update_active_session", {
 					passed_user_id: user.id,
 					passed_status: status,
+					passed_details: details,
 				})
 				.select()
 				.maybeSingle();
@@ -317,37 +259,6 @@ const sessionService = {
 			return createAPIErrorResponse(
 				err,
 				"An error occured while deleting session",
-			);
-		}
-	},
-
-	/**
-	 * Subscribes to realtime updates on active sessions
-	 *
-	 * @param onInsert called when an active_session row is inserted
-	 * @param onUpdate called when an active_session row is updated
-	 * @param onDelete called when an active_session row is deleted
-	 * @returns api response {@linkcode APIResponse}
-	 * @error NETWORK_ERROR if an error occurs while subscribing to realtime updates
-	 * @error GENERAL_ERROR for unexpected errors
-	 */
-	async subscribeToSessions(
-		onInsert: (session: ActiveSession) => void,
-		onUpdate: (session: ActiveSession) => void,
-		onDelete: (session: ActiveSession) => void,
-	): Promise<APIResponse<null>> {
-		try {
-			sessionChannel.start(onInsert, onUpdate, onDelete);
-
-			return createAPISuccessResponse(
-				"Successfully subscribed to active session updates",
-				null,
-			);
-		} catch (err: unknown) {
-			return createAPIErrorResponse(
-				err,
-				"An error occured while subscribing to active session updates",
-				"NETWORK_ERROR",
 			);
 		}
 	},

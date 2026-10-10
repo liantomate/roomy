@@ -6,77 +6,72 @@ import {
 } from "../../../types/responseTypes";
 import { User } from "./user";
 
+/**
+ * Handles user-related fetching
+ */
 class UserManager {
-	private static instance: UserManager | null = null;
-
-	private size = 0;
-
-	private users: Record<string, User> = {};
-	private currentUserId: string = "";
-
-	private constructor() {}
-
-	public static getInstance() {
-		return (this.instance ??= new UserManager());
+	/**
+	 * Fetches user based on the given id
+	 *
+	 * @param userId id of the target user
+	 * @returns hook response {@linkcode HookResponse} with data {@linkcode User}
+	 * @error GENERAL_QUERY_ERROR if the user can't be fetched
+	 * @error GENERAL_FATAL_ERROR if an unexpected error occured during fetching
+	 */
+	public static async getUserById(
+		userId: string,
+	): Promise<HookResponse<User>> {
+		const response = await userService.getUserById(userId);
+		if (!response.isSuccessful) {
+			if (response.code === "QUERY_ERROR")
+				return errorResponse("GENERAL_QUERY_ERROR", response.error);
+			return errorResponse("GENERAL_FATAL_ERROR", response.error);
+		}
+		return successResponse(User.createFromAccount(response.additional));
 	}
 
-	// MUST BE CALLED FIRST
-	public async fetchUsers(): Promise<HookResponse<null>> {
-		const response = await userService.getAllUsers();
-		if (!response.isSuccessful)
-			return errorResponse("GENERAL_QUERY_ERROR", response.error);
-
-		// Disallow multifetches for now, refresh page for another fetch
-		// TODO: allow automated fetching soon after MVP
-		if (this.size > 0)
-			return errorResponse(
-				"GENERAL_INIT_ERROR",
-				"Users already fetched, refresh page to fetch new users",
-			);
-
-		for (const account of response.additional!) {
-			const user = User.createFromAccount(account);
-			this.users[user.id] = user;
+	/**
+	 * Fetches authenticated user and returns a user instance
+	 *
+	 * @returns hook response {@linkcode HookResponse} with data {@linkcode User}
+	 * @error GENERAL_AUTH_NO_USER_FOUND if no authenticated user is found
+	 * @error GENERAL_QUERY_ERROR if error occurs while getting the user
+	 * @error GENERAL_FATAL_ERROR if an unexpected error occurs
+	 */
+	public static async getCurrentUser(): Promise<HookResponse<User>> {
+		const response = await userService.getCurrentUser();
+		if (!response.isSuccessful) {
+			if (response.code === "AUTH_ERROR")
+				return errorResponse(
+					"GENERAL_AUTH_NO_USER_FOUND",
+					response.error,
+				);
+			if (response.code === "QUERY_ERROR")
+				return errorResponse("GENERAL_QUERY_ERROR", response.error);
+			return errorResponse("GENERAL_FATAL_ERROR", response.error);
 		}
 
-		this.size = Object.keys(this.users).length;
-
-		return successResponse(null);
+		return successResponse(User.createFromAccount(response.additional));
 	}
 
-	public resetUserManager() {
-		this.size = 0;
-		this.users = {};
-		this.currentUserId = "";
-	}
-
-	public getSize(): number {
-		return this.size;
-	}
-
-	public isEmpty(): boolean {
-		return this.size === 0;
-	}
-
-	public getUserById(userId: string): User | null {
-		if (this.isEmpty()) return null;
-
-		return this.users[userId] ?? null;
-	}
-
-	public checkAndSetUserId(userId: string): boolean {
-		if (!this.users[userId]) return false;
-		this.currentUserId = userId;
-		return true;
-	}
-
-	public getCurrentUser(): User | null {
-		return this.getUserById(this.currentUserId);
-	}
-
-	public getAllUsers(): User[] {
-		return Object.values(this.users);
+	/**
+	 * Fetches all stored users
+	 *
+	 * @returns hook response {@linkcode HookResponse} with array data of {@linkcode User}
+	 * @error GENERAL_QUERY_ERROR if users can't be fetched
+	 * @error GENERAL_FATAL_ERROR if an unexpected error occured during fetching
+	 */
+	public static async getAllUsers(): Promise<HookResponse<User[]>> {
+		const response = await userService.getAllUsers();
+		if (!response.isSuccessful) {
+			if (response.code === "QUERY_ERROR")
+				return errorResponse("GENERAL_QUERY_ERROR", response.error);
+			return errorResponse("GENERAL_FATAL_ERROR", response.error);
+		}
+		return successResponse(
+			response.additional.map((user) => User.createFromAccount(user)),
+		);
 	}
 }
 
-export default UserManager.getInstance();
+export default UserManager;

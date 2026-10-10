@@ -11,8 +11,10 @@
  */
 export function formatTimeMMSS(timeValue: number): string {
 	const divided = timeValue / 60;
-	const minute = Math.floor(divided);
-	const seconds = Math.round((divided - minute) * 60);
+	let minute = Math.floor(divided);
+	minute = minute < 0 ? 0 : minute;
+	let seconds = Math.round((divided - minute) * 60);
+	seconds = seconds < 0 ? 0 : seconds;
 
 	return (
 		minute.toString().padStart(2, "0") +

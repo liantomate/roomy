@@ -1,54 +1,55 @@
-import sessionService from "../api/services/sessionService";
-import {
-	TimerEngine,
-	type TimerData,
-} from "../core/features/timer/timerEngine";
+import { TimerEngine } from "../core/features/timer/timerEngine";
 import type { ReadOnlyTimer } from "../core/features/timer/timerInstances";
 import { ModeCounter, ModeTimer } from "../core/features/timer/timerMode";
 import { SystemSecTimeSource } from "../core/features/timer/timeSource";
+import SessionManager from "../core/features/users/sessionManager";
+import userManager from "../core/features/users/userManager";
 import type { ActiveSession } from "../types/database.types";
 import {
 	errorResponse,
 	successResponse,
 	type HookResponse,
-	type ResponseErrorCode,
 } from "../types/responseTypes";
 import { type TimerModes } from "../types/timerTypes";
-import UserApp from "./userApp";
 
-class TimerList {
-	private timerInstances: Record<string, TimerEngine>;
+/**
+ * Creates a {@linkcode TimerEngine} from loaded {@linkcode ActiveSession}
+ *
+ * @param sessionData data {@linkcode SessionData} for timer engine
+ * @returns created {@linkcode TimerEngine}
+ */
+function createTimerFromSession(sessionData: ActiveSession): TimerEngine {
+	const timerMode =
+		sessionData.timerMode === "timer"
+			? new ModeTimer(sessionData.timeCap)
+			: new ModeCounter(sessionData.timeCap);
 
-	public constructor() {
-		this.timerInstances = {};
-	}
+	return TimerEngine.createFrom({
+		mode: timerMode,
+		timeSource: new SystemSecTimeSource(),
+		status: sessionData.status,
 
-	public insert(userId: string, timerData: TimerData) {
-		this.timerInstances[userId] = TimerEngine.createFrom(timerData);
-	}
-
-	public remove(userId: string) {
-		delete this.timerInstances[userId];
-	}
-
-	public getById(userId: string): TimerEngine | undefined {
-		return this.timerInstances[userId] ?? undefined;
-	}
-
-	public getPeerById(userId: string): ReadOnlyTimer | undefined {
-		return this.getById(userId)?.getReadOnlyTimer() ?? undefined;
-	}
-
-	public getTimers(): Record<string, TimerEngine> {
-		return structuredClone(this.timerInstances);
-	}
+		timeStart: new Date(sessionData.lastTick).getTime() / 1000,
+		lastTick: new Date(sessionData.lastTick).getTime() / 1000,
+		timeElapsed: sessionData.lastTime,
+	});
 }
 
-const DEFAULT_COUNTER_CAP = 86400;
+/**
+ * Handles logic and hook layer connection in terms of Timer-handling, managing user and peer timers
+ */
 class TimerApp {
 	private static instance: TimerApp | null = null;
 
-	private timers: TimerList | null = null;
+	/**
+	 * Default max cap of timers in ModeCounter equal to 24 hours in seconds
+	 */
+	private readonly DEFAULT_COUNTER_CAP = 86400;
+
+	private userId: string | null = "";
+	private timer: TimerEngine | null = null;
+
+	private timers: Record<string, TimerEngine> = {};
 
 	private constructor() {}
 
@@ -56,253 +57,300 @@ class TimerApp {
 		return (this.instance ??= new TimerApp());
 	}
 
-	public async init(): Promise<HookResponse<null>> {
-		const userAppInit = await UserApp.ready();
-		const currentUser = UserApp.getCurrentUser();
-		if (userAppInit.error)
+	/**
+	 * Loads authenticated user's timer if any, else a default one is loaded
+	 *
+	 * @returns hook response {@linkcode HookResponse}
+	 * @error GENERAL_AUTH_NO_USER_FOUND if no authenticated user found
+	 * @error GENERAL_QUERY_ERROR if sessions cannot be fetched
+	 */
+	public async loadTimers(): Promise<HookResponse<null>> {
+		const response = await SessionManager.getCurrentUserActiveSession();
+		const userResponse = await userManager.getCurrentUser();
+		const userId = userResponse.data;
+		if (response.error || userResponse.error || !userId)
 			return errorResponse(
-				"GENERAL_INIT_ERROR",
-				"UserApp failed to initialized, which TimerApp depends on",
-			);
-		if (!currentUser)
-			return errorResponse(
-				"GENERAL_INIT_ERROR",
-				"Failed to get current user data despite successful initialization",
+				"GENERAL_AUTH_NO_USER_FOUND",
+				response.error?.message ??
+					userResponse.error?.message ??
+					"Unable to access authenticated user",
 			);
 
-		this.timers = new TimerList();
+		const fetchAllResponse = await SessionManager.getAllActiveSessions();
+		if (fetchAllResponse.error)
+			return errorResponse(
+				"GENERAL_QUERY_ERROR",
+				fetchAllResponse.error.message,
+			);
 
-		const response = await sessionService.subscribeToSessions(
+		this.userId = userId.id;
+		if (!response.data) this.timer = TimerEngine.createNew();
+		else this.timer = createTimerFromSession(response.data);
+
+		for (const sessionData of fetchAllResponse.data ?? []) {
+			if (
+				response.data &&
+				sessionData.sessionOwner === response.data.sessionOwner
+			)
+				continue;
+			this.timers[sessionData.sessionOwner] =
+				createTimerFromSession(sessionData);
+		}
+
+		return successResponse(null);
+	}
+
+	/**
+	 * Registers and subscribes to the ActiveSession channel, calling the provided functions on change updates
+	 *
+	 * @returns hook response {@linkcode HookResponse}
+	 * @error REALTIME_SUBSCRIPTION_ERROR if an error occured during subscription
+	 */
+	public subscribeToSessions(): HookResponse<null> {
+		const response = SessionManager.subscribeToActiveSessionRealtime(
 			this.handlePeerTimerInsert.bind(this),
 			this.handlePeerTimerUpdate.bind(this),
 			this.handlePeerTimerDelete.bind(this),
 		);
 
-		if (!response.isSuccessful)
-			console.error(
-				"Error subscribing to realtime active_sessions: ",
-				response.error,
-			);
-
-		// Fill list
-		const userList = UserApp.getAllUsers()!;
-		for (const user of userList) {
-			const activeSess = await user.getActiveSession();
-			// TODO: Give reliable way to handle unfetched users
-			if (activeSess.error) {
-				console.error(
-					`Unable to register user: ${user.name} with ID ${user.id}`,
-				);
-				continue;
-			}
-
-			if (!activeSess.data) continue;
-
-			this.timers.insert(activeSess.data.sessionOwner, {
-				mode: new ModeCounter(DEFAULT_COUNTER_CAP),
-				status: activeSess.data!.status,
-				timeStart: activeSess.data!.sessionDate.getTime() / 1000,
-				lastTick: activeSess.data!.lastTick.getTime() / 1000,
-				timeSource: new SystemSecTimeSource(),
-				timeElapsed: activeSess.data!.duration,
-			});
-		}
-
-		if (!this.timers.getById(currentUser.id))
-			this.timers.insert(currentUser.id, {
-				mode: new ModeCounter(DEFAULT_COUNTER_CAP),
-				status: "idle",
-				timeStart: 0,
-				lastTick: 0,
-				timeElapsed: 0,
-				timeSource: new SystemSecTimeSource(),
-			});
-
+		if (response.error) return response;
 		return successResponse(null);
 	}
 
-	private getUserTimer(): HookResponse<TimerEngine> {
-		const user = UserApp.getCurrentUser();
-		if (!user)
-			return errorResponse(
-				"GENERAL_INIT_ERROR",
-				"UserApp has not yet been initialized, which TimerApp depends on",
-			);
-		if (!this.timers)
-			return errorResponse(
-				"GENERAL_INIT_ERROR",
-				"TimerApp has not yet been properly initialized",
-			);
+	/**
+	 * Unsubscribes from the ActiveSession channel
+	 *
+	 * @returns hook response {@linkcode HookResponse}
+	 * @error REALTIME_UNSUBSCRIPTION_ERROR if an error occured during unsubscription
+	 */
+	public async unsubscribeToSessions(): Promise<HookResponse<null>> {
+		const response =
+			await SessionManager.unsubscribeToActiveSessionRealtime();
 
-		const timerEngine = this.timers.getById(user.id);
-		return successResponse(timerEngine);
+		if (response.error) return response;
+		return successResponse(null);
 	}
 
+	/**
+	 * Handles new active session insertion from other users
+	 *
+	 * @param sessionData realtime payload
+	 */
 	private handlePeerTimerInsert(sessionData: ActiveSession) {
-		this.timers!.insert(sessionData.sessionOwner, {
-			mode: new ModeCounter(DEFAULT_COUNTER_CAP),
-			status: sessionData.status,
-			timeStart: sessionData.sessionDate.getTime() / 1000,
-			lastTick: sessionData.lastTick.getTime() / 1000,
-			timeSource: new SystemSecTimeSource(),
-			timeElapsed: sessionData.duration,
-		});
+		if (sessionData.sessionOwner === this.userId) {
+			this.timer = createTimerFromSession(sessionData);
+			return;
+		}
+
+		this.timers[sessionData.sessionOwner] =
+			createTimerFromSession(sessionData);
 	}
 
+	/**
+	 * Handles new active session update from other users
+	 *
+	 * @param sessionData realtime payload
+	 */
 	private handlePeerTimerUpdate(sessionData: ActiveSession) {
-		const timer = this.timers!.getById(sessionData.sessionOwner);
-		if (!timer) return;
+		if (sessionData.sessionOwner === this.userId) {
+			this.timer?.setStatus(sessionData.status);
+			return;
+		}
 
-		timer.setStatus(sessionData.status);
+		this.timers[sessionData.sessionOwner] =
+			createTimerFromSession(sessionData);
 	}
 
+	/**
+	 * Handles active session deletion by other users
+	 *
+	 * @param sessionData realtime payload
+	 */
 	private handlePeerTimerDelete(sessionData: ActiveSession) {
-		this.timers!.remove(sessionData.sessionOwner);
+		if (sessionData.sessionOwner === this.userId) {
+			this.timer?.reset();
+			return;
+		}
+
+		if (!(sessionData.sessionOwner in this.timers)) return;
+
+		delete this.timers[sessionData.sessionOwner];
 	}
 
+	/**
+	 * Starts user timer with the given mode
+	 *
+	 * @param timerMode mode of the timer {@linkcode TimerModes}
+	 * @param duration time cap
+	 * @returns hook response {@linkcode HookResponse}
+	 * @error GENERAL_INIT_ERROR if the timer hasn't yet been loaded
+	 * @error TIMER_INVALID_STATE if the timer is not in a valid starting state
+	 * @error other errors returned by {@linkcode SessionManager.createSession}
+	 */
 	public async start(
 		timerMode: TimerModes,
-		duration: number = DEFAULT_COUNTER_CAP,
+		sessionDetails: string,
+		duration: number = this.DEFAULT_COUNTER_CAP,
 	): Promise<HookResponse<null>> {
-		const getTimer = await this.getUserTimer();
-		if (getTimer.error)
-			return errorResponse(getTimer.error.code, getTimer.error.message);
-		if (!getTimer.data)
+		if (!this.timer)
 			return errorResponse(
-				"GENERAL_QUERY_ERROR",
-				"Failed to get user timer",
+				"GENERAL_INIT_ERROR",
+				"Timer hasn't yet been loaded",
 			);
 
-		const timerEngine = getTimer.data;
-
-		if (timerEngine.getStatus() !== "idle")
+		if (this.timer.getStatus() !== "idle")
 			return errorResponse(
 				"TIMER_INVALID_STATE",
-				`Timer status must be idle, not ${timerEngine.getStatus()}`,
+				`Timer status must be idle, not ${this.timer.getStatus()}`,
 			);
 
-		// REMOTE
-		const response = await sessionService.createSession();
-		if (!response.isSuccessful) {
-			let errorCode: ResponseErrorCode | null = null;
-			if (response.code === "AUTH_ERROR")
-				errorCode = "GENERAL_AUTH_NO_USER_FOUND";
-			else if (response.code === "QUERY_ERROR")
-				errorCode = "GENERAL_QUERY_ERROR";
-			else errorCode = "GENERAL_FATAL_ERROR";
+		const modeToUse =
+			timerMode === "timer"
+				? new ModeTimer(duration)
+				: new ModeCounter(this.DEFAULT_COUNTER_CAP);
 
-			return errorResponse(errorCode, response.error);
-		}
+		// REMOTE
+		const response = await SessionManager.createSession(
+			modeToUse,
+			sessionDetails,
+		);
+		if (response.error) return response;
 
 		// LOCAL
-		if (timerMode === "timer") timerEngine.start(new ModeTimer(duration));
-		else if (timerMode === "counter")
-			timerEngine.start(new ModeCounter(DEFAULT_COUNTER_CAP));
+		this.timer.start(modeToUse);
 
 		return successResponse(null);
 	}
 
+	/**
+	 * Resets user timer
+	 *
+	 * @returns hook response {@linkcode HookResponse}
+	 * @error GENERAL_INIT_ERROR if the timer hasn't yet been loaded
+	 * @error TIMER_INVALID_STATE if the timer is not in a valid resetting state
+	 * @error other errors returned by {@linkcode SessionManager.updateSession}
+	 */
 	public async reset(): Promise<HookResponse<null>> {
-		const getTimer = await this.getUserTimer();
-		if (getTimer.error)
-			return errorResponse(getTimer.error.code, getTimer.error.message);
-		const timerEngine = getTimer.data!;
+		if (!this.timer)
+			return errorResponse(
+				"GENERAL_INIT_ERROR",
+				"Timer hasn't yet been loaded",
+			);
 
-		if (timerEngine.getStatus() === "idle")
+		if (this.timer.getStatus() === "idle")
 			return errorResponse(
 				"TIMER_INVALID_STATE",
-				`Timer status must be running or paused, not ${timerEngine.getStatus()}`,
+				`Timer status must be running or paused, not ${this.timer.getStatus()}`,
 			);
 
 		// REMOTE
-		const response = await sessionService.updateSession("idle");
-		if (!response.isSuccessful) {
-			let errorCode: ResponseErrorCode | null = null;
-			if (response.code === "AUTH_ERROR")
-				errorCode = "GENERAL_AUTH_NO_USER_FOUND";
-			else if (response.code === "NETWORK_ERROR")
-				errorCode = "GENERAL_NETWORK_ERROR";
-			else if (response.code === "QUERY_ERROR")
-				errorCode = "GENERAL_QUERY_ERROR";
-			else errorCode = "GENERAL_FATAL_ERROR";
-
-			return errorResponse(errorCode, response.error);
-		}
+		const response = await SessionManager.updateSession("idle");
+		if (response.error) return response;
 
 		// LOCAL
-		timerEngine.reset();
+		this.timer.reset();
 
 		return successResponse(null);
 	}
 
+	/**
+	 * Pauses the user timer
+	 *
+	 * @returns hook response {@linkcode HookResponse}
+	 * @error GENERAL_INIT_ERROR if the timer hasn't yet been loaded
+	 * @error TIMER_INVALID_STATE if the timer is not in a valid pausing state
+	 * @error other errors returned by {@linkcode SessionManager.updateSession}
+	 */
 	public async pause(): Promise<HookResponse<null>> {
-		const getTimer = this.getUserTimer();
-		if (getTimer.error)
-			return errorResponse(getTimer.error.code, getTimer.error.message);
-		const timerEngine = getTimer.data!;
+		if (!this.timer)
+			return errorResponse(
+				"GENERAL_INIT_ERROR",
+				"Timer hasn't yet been loaded",
+			);
 
-		if (timerEngine.getStatus() === "idle")
+		if (this.timer.getStatus() === "idle")
 			return errorResponse(
 				"TIMER_INVALID_STATE",
-				`Timer status must be running or paused, not ${timerEngine.getStatus()}`,
+				`Timer status must be running or paused, not ${this.timer.getStatus()}`,
 			);
 
 		// REMOTE
-		const response = await sessionService.updateSession("paused");
-		if (!response.isSuccessful) {
-			let errorCode: ResponseErrorCode | null = null;
-			if (response.code === "AUTH_ERROR")
-				errorCode = "GENERAL_AUTH_NO_USER_FOUND";
-			else if (response.code === "NETWORK_ERROR")
-				errorCode = "GENERAL_NETWORK_ERROR";
-			else if (response.code === "QUERY_ERROR")
-				errorCode = "GENERAL_QUERY_ERROR";
-			else errorCode = "GENERAL_FATAL_ERROR";
-
-			return errorResponse(errorCode, response.error);
-		}
+		const response = await SessionManager.updateSession("paused");
+		if (response.error) return response;
 
 		// LOCAL
-		timerEngine.pause();
+		this.timer.pause();
 
 		return successResponse(null);
 	}
 
+	/**
+	 * Resumes the user timer
+	 *
+	 * @returns hook response {@linkcode HookResponse}
+	 * @error GENERAL_INIT_ERROR if the timer hasn't yet been loaded
+	 * @error TIMER_INVALID_STATE if the timer is not in a valid resuming state
+	 * @error other errors returned by {@linkcode SessionManager.updateSession}
+	 */
 	public async resume(): Promise<HookResponse<null>> {
-		const getTimer = await this.getUserTimer();
-		if (getTimer.error)
-			return errorResponse(getTimer.error.code, getTimer.error.message);
-		const timerEngine = getTimer.data!;
+		if (!this.timer)
+			return errorResponse(
+				"GENERAL_INIT_ERROR",
+				"Timer hasn't yet been loaded",
+			);
 
-		if (timerEngine.getStatus() === "idle")
+		if (this.timer.getStatus() === "idle")
 			return errorResponse(
 				"TIMER_INVALID_STATE",
-				`Timer status must be running or paused, not ${timerEngine.getStatus()}`,
+				`Timer status must be running or paused, not ${this.timer.getStatus()}`,
 			);
 
 		// REMOTE
-		const response = await sessionService.updateSession("running");
-		if (!response.isSuccessful) {
-			let errorCode: ResponseErrorCode | null = null;
-			if (response.code === "AUTH_ERROR")
-				errorCode = "GENERAL_AUTH_NO_USER_FOUND";
-			else if (response.code === "NETWORK_ERROR")
-				errorCode = "GENERAL_NETWORK_ERROR";
-			else if (response.code === "QUERY_ERROR")
-				errorCode = "GENERAL_QUERY_ERROR";
-			else errorCode = "GENERAL_FATAL_ERROR";
-
-			return errorResponse(errorCode, response.error);
-		}
+		const response = await SessionManager.updateSession("running");
+		if (response.error) return response;
 
 		// LOCAL
-		timerEngine.resume();
+		this.timer.resume();
 
 		return successResponse(null);
 	}
 
-	public getTimerByID(userId: string): ReadOnlyTimer | undefined {
-		return this.timers?.getPeerById(userId) ?? undefined;
+	/**
+	 * @param userId id of the user to return the timer of
+	 * @returns read only timer {@linkcode ReadOnlyTimer}
+	 * @error TIMER_NO_TIMER_FOUND if no active session is found for target user
+	 * @error errors returned by {@linkcode SessionManager.getActiveSessionById}
+	 */
+	public async getTimerByID(
+		userId: string,
+	): Promise<HookResponse<ReadOnlyTimer>> {
+		const response = await SessionManager.getActiveSessionById(userId);
+		if (response.error)
+			return errorResponse(response.error.code, response.error.message);
+		if (!response.data)
+			return errorResponse(
+				"TIMER_NO_TIMER_FOUND",
+				"User with the given id doesn't have an active session",
+			);
+
+		const sessionData = response.data;
+		const timer = TimerEngine.createFrom({
+			mode: new ModeCounter(this.DEFAULT_COUNTER_CAP),
+			timeSource: new SystemSecTimeSource(),
+			timeStart: sessionData.lastTime,
+			status: sessionData.status,
+			lastTick: new Date(sessionData.lastTick).getTime() / 1000,
+			timeElapsed: sessionData.duration,
+		});
+
+		return successResponse(timer.getReadOnlyTimer());
+	}
+
+	/**
+	 * @returns read-only timer of authenticated user {@linkcode ReadOnlyTimer} if any, undefined otherwise
+	 */
+	public getUserTimer(): ReadOnlyTimer | undefined {
+		return this.timer?.getReadOnlyTimer();
 	}
 }
 
