@@ -12,6 +12,12 @@ import {
 } from "../types/responseTypes";
 import { type TimerModes } from "../types/timerTypes";
 
+/**
+ * Creates a {@linkcode TimerEngine} from loaded {@linkcode ActiveSession}
+ *
+ * @param sessionData data {@linkcode SessionData} for timer engine
+ * @returns created {@linkcode TimerEngine}
+ */
 function createTimerFromSession(sessionData: ActiveSession): TimerEngine {
 	const timerMode =
 		sessionData.timerMode === "timer"
@@ -55,6 +61,8 @@ class TimerApp {
 	 * Loads authenticated user's timer if any, else a default one is loaded
 	 *
 	 * @returns hook response {@linkcode HookResponse}
+	 * @error GENERAL_AUTH_NO_USER_FOUND if no authenticated user found
+	 * @error GENERAL_QUERY_ERROR if sessions cannot be fetched
 	 */
 	public async loadTimers(): Promise<HookResponse<null>> {
 		const response = await SessionManager.getCurrentUserActiveSession();
@@ -300,6 +308,8 @@ class TimerApp {
 	/**
 	 * @param userId id of the user to return the timer of
 	 * @returns read only timer {@linkcode ReadOnlyTimer}
+	 * @error TIMER_NO_TIMER_FOUND if no active session is found for target user
+	 * @error errors returned by {@linkcode SessionManager.getActiveSessionById}
 	 */
 	public async getTimerByID(
 		userId: string,
