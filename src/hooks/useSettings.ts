@@ -6,6 +6,11 @@ import {
 import settingsApp from "../apps/settingsApp";
 import { createHookOperation } from "../types/responseTypes";
 
+/**
+ * Handles proper matching of system theme to light or dark theme
+ *
+ * @returns matching {@linkcode ResolvedThemeValues}
+ */
 function getSystemTheme(): ResolvedThemeValues {
 	return window.matchMedia("(prefers-color-scheme: dark)").matches
 		? "dark"
@@ -17,6 +22,11 @@ type SettingsTheme = {
 	actualTheme: ResolvedThemeValues;
 };
 
+/**
+ * Returns settings-related actions and data
+ *
+ * @returns hooks operations {@linkcode HookOperation} for: theme
+ */
 function useSettings() {
 	const [preferredTheme, setPreferredTheme] = useState<ThemeValues>(
 		settingsApp.getTheme(),
