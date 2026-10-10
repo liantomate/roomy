@@ -121,14 +121,14 @@ class SessionManager {
 		onDelete: ActiveSessionListener,
 	): HookResponse<null> {
 		const registerResponse = RealTimeService.registerChannel(
-			"ActiveSession",
+			"active_sessions",
 			onCreate,
 			onUpdate,
 			onDelete,
 		);
 		if (!registerResponse) return successResponse(null);
 
-		const subResponse = RealTimeService.startChannel("ActiveSession");
+		const subResponse = RealTimeService.startChannel("active_sessions");
 		if (!subResponse.isSuccessful)
 			return errorResponse(
 				"REALTIME_SUBSCRIPTION_ERROR",
@@ -147,7 +147,7 @@ class SessionManager {
 	public static async unsubscribeToActiveSessionRealtime(): Promise<
 		HookResponse<null>
 	> {
-		const response = await RealTimeService.stopChannel("ActiveSession");
+		const response = await RealTimeService.stopChannel("active_sessions");
 		if (!response.isSuccessful)
 			return errorResponse(
 				"REALTIME_UNSUBSCRIPTION_ERROR",

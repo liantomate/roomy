@@ -31,6 +31,9 @@ function useTimer(updateTime: number = 1000) {
 	const [, triggerRerender] = useState(0);
 
 	useEffect(() => {
+		let cancelled = false;
+		let unsubscribe: () => Promise<any> | undefined;
+
 		const initTimer = async () => {
 			setTimerInit(true);
 			setInitError(undefined);
@@ -41,8 +44,17 @@ function useTimer(updateTime: number = 1000) {
 					setInitError(initResponse.error);
 					return;
 				}
+
+				const subResponse = timerApp.subscribeToSessions();
+				if (subResponse.error) {
+					setInitError(subResponse.error);
+					return;
+				}
+
+				if (cancelled) await timerApp.unsubscribeToSessions();
+				else unsubscribe = () => timerApp.unsubscribeToSessions();
 			} finally {
-				setTimerInit(false);
+				if (!cancelled) setTimerInit(false);
 			}
 		};
 		initTimer();
@@ -52,7 +64,11 @@ function useTimer(updateTime: number = 1000) {
 			triggerRerender((x) => x + 1);
 		}, updateTime);
 
-		return () => clearInterval(interval);
+		return () => {
+			cancelled = true;
+			clearInterval(interval);
+			if (unsubscribe) void unsubscribe();
+		};
 	}, []);
 
 	async function start(

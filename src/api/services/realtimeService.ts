@@ -40,7 +40,7 @@ class Channel<T> {
 	 * @param channelName name of the table {@linkcode TableNames} to connect to
 	 * @returns true if success, false otherwise
 	 */
-	public subscribe(channelName: keyof TableNames): boolean {
+	public subscribe(channelName: TableNames): boolean {
 		if (this.channel) return false;
 
 		this.channel = supabase.channel(channelName);
@@ -89,7 +89,10 @@ class Channel<T> {
 					},
 				);
 
-			this.channel.subscribe();
+			this.channel.subscribe((status, error) => {
+				console.log(`Subscription status of ${channelName}: `, status);
+				if (error) console.error(error.message);
+			});
 			return true;
 		} catch (err: unknown) {
 			const errMessage =
@@ -135,7 +138,7 @@ class RealTimeService {
 	 * @error GENERAL_ERROR if an existing channel is already registered
 	 */
 	public static registerChannel<T>(
-		channelName: keyof TableNames,
+		channelName: TableNames,
 		onCreate?: ChannelListener<T>,
 		onUpdate?: ChannelListener<T>,
 		onDelete?: ChannelListener<T>,
@@ -164,9 +167,7 @@ class RealTimeService {
 	 * @returns api response {@linkcode APIResponse}
 	 * @error GENERAL_ERROR if the channel isn't registered or channel is already subscribed
 	 */
-	public static startChannel(
-		channelName: keyof TableNames,
-	): APIResponse<null> {
+	public static startChannel(channelName: TableNames): APIResponse<null> {
 		if (!(channelName in RealTimeService.channels))
 			return createAPIErrorResponse(
 				`No registered realtime channel with name: ${channelName}`,
@@ -193,7 +194,7 @@ class RealTimeService {
 	 * @error GENERAL_ERROR if the channel isn't registered or channel is already unsubscribed
 	 */
 	public static async stopChannel(
-		channelName: keyof TableNames,
+		channelName: TableNames,
 	): Promise<APIResponse<null>> {
 		if (!(channelName in RealTimeService.channels))
 			return createAPIErrorResponse(

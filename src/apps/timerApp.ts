@@ -137,6 +137,7 @@ class TimerApp {
 	 * @param sessionData realtime payload
 	 */
 	private handlePeerTimerInsert(sessionData: ActiveSession) {
+		console.log("INSERTED");
 		if (sessionData.sessionOwner === this.userId) return;
 
 		this.timers[sessionData.sessionOwner] =
@@ -149,7 +150,11 @@ class TimerApp {
 	 * @param sessionData realtime payload
 	 */
 	private handlePeerTimerUpdate(sessionData: ActiveSession) {
-		if (sessionData.sessionOwner === this.userId) return;
+		console.log("UPDATED");
+		if (sessionData.sessionOwner === this.userId) {
+			this.timer = createTimerFromSession(sessionData);
+			return;
+		}
 
 		this.timers[sessionData.sessionOwner] =
 			createTimerFromSession(sessionData);
@@ -161,7 +166,12 @@ class TimerApp {
 	 * @param sessionData realtime payload
 	 */
 	private handlePeerTimerDelete(sessionData: ActiveSession) {
-		if (sessionData.sessionOwner === this.userId) return;
+		console.log("DELETED");
+		if (sessionData.sessionOwner === this.userId) {
+			this.timer?.reset();
+			return;
+		}
+
 		if (!(sessionData.sessionOwner in this.timers)) return;
 
 		delete this.timers[sessionData.sessionOwner];
